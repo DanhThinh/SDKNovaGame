@@ -39,9 +39,7 @@ Mở lại Unity để resolve, sau đó commit cả `manifest.json` lẫn `pack
 
 ## Sau khi cài
 
-1. Cài vendor plugin cần dùng (Firebase, AppLovin MAX, Google Mobile Ads, Adjust, Unity IAP...). Vendor không nằm trong package; module nào thiếu vendor sẽ tự tắt.
-2. Import sample: *Package Manager > NovaGames Mobile SDK > Samples > Demo > Import*.
-3. Tạo asset `NovaSdkSettings` và gọi `NovaSdk.InitializeAsync(settings)`.
+Làm theo checklist **"Bắt đầu nhanh — import xong làm gì?"** ở đầu [`Docs/Guide.md`](Packages/com.novagames.sdk/Docs/Guide.md): tạo `NovaSdkSettings` + script Boot → chọn module → cài vendor → điền config → kiểm tra trước khi build.
 
 Hướng dẫn chi tiết: [`Docs/Guide.md`](Packages/com.novagames.sdk/Docs/Guide.md) · Cấu trúc code: [`Docs/Overview.md`](Packages/com.novagames.sdk/Docs/Overview.md)
 

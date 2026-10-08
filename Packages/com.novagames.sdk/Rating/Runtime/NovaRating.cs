@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using NovaGames.Mobile.Infrastructure;
 using NovaGames.Mobile.Rating;
 using UnityEngine;
@@ -25,6 +26,7 @@ namespace NovaGames.Mobile
     {
         static RatingState? s_state;
         static RatingPopup? s_popup;
+        static readonly List<RatingPopup> Popups = new List<RatingPopup>();
         static IInAppReviewProvider? s_androidReview;
 
         /// <summary>
@@ -159,11 +161,19 @@ namespace NovaGames.Mobile
         /// <summary>Adapter Play In-App Review tự gọi khi được cài. Game không cần gọi.</summary>
         public static void SetInAppReviewProvider(IInAppReviewProvider? provider) => s_androidReview = provider;
 
-        internal static void Register(RatingPopup popup) => s_popup = popup;
+        // Popup bật sau cùng được dùng; popup đó tắt/hủy thì quay về popup bật trước đó còn sống (vd. popup của prefab NovaSdk).
+        internal static void Register(RatingPopup popup)
+        {
+            Popups.Remove(popup);
+            Popups.Add(popup);
+            s_popup = popup;
+        }
 
         internal static void Unregister(RatingPopup popup)
         {
-            if (ReferenceEquals(s_popup, popup)) s_popup = null;
+            Popups.Remove(popup);
+            Popups.RemoveAll(p => p == null);
+            if (ReferenceEquals(s_popup, popup)) s_popup = Popups.Count > 0 ? Popups[Popups.Count - 1] : null;
         }
 
         internal static void MarkDone()
@@ -227,6 +237,7 @@ namespace NovaGames.Mobile
         {
             s_state = null;
             s_popup = null;
+            Popups.Clear();
             MinLevel = -1;
             Closed = null;
             // s_androidReview giữ nguyên: adapter đăng ký ở AfterAssembliesLoaded.

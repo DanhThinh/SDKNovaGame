@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3cbd90db648bcf74aae0e7263b72492c, type: 3}
+  m_Name: NovaSdkSettings
+  m_EditorClassIdentifier: 
+  remoteConfig: {fileID: 11400000, guid: 66f47e007d8ea0a49bfa4af14bf167be, type: 2}
+  maxAds: {fileID: 11400000, guid: 8b94993a124e94348854e7094c70b760, type: 2}
+  admobAds: {fileID: 11400000, guid: aa1bf0ec00a58bf41aa373414ca3a266, type: 2}
+  adsMediation:
+    interstitial: 1
+    rewarded: 1
+    appOpen: 1
+    banner: 1
+    mrec: 1
+  pauseGameDuringFullScreenAds: 1
+  crashReporting: 1
+  uncaughtExceptionsAsFatal: 0
+  adjust: {fileID: 11400000, guid: 1e267da67443e6a4091da5d09c2428cf, type: 2}
+  iap: {fileID: 11400000, guid: e50f2cd76f3ef5b438c756692648fbcb, type: 2}
+  notifications: {fileID: 11400000, guid: 6934fc148082d534ab56a60d10c1ec54, type: 2}
+  consentSource: 0
+  underAgeOfConsent: 0
+  debugGeography: 0
+  consentTestDeviceHashedIds: []
+  requestAttOnStartup: 1
+  attUsageDescription: Your data will be used to deliver personalized ads to you.

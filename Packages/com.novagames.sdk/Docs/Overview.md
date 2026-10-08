@@ -79,6 +79,7 @@ Packages/com.novagames.sdk/
 ├── Notifications/        Adapter Unity Mobile Notifications
 ├── NoInternet/           Popup mất mạng (prefab + MonoBehaviour)
 ├── Rating/               Popup đánh giá + Google Play In-App Review
+├── Bootstrap/            Prefab NovaSdk: kéo vào scene đầu là khởi động SDK + popup
 ├── Tests/                Test EditMode (NUnit) + fake dùng chung
 └── Docs/                 Guide.md, Overview.md, tài liệu PDF của AppLovin về bid floor
 ```
@@ -92,7 +93,7 @@ Packages/com.novagames.sdk/
 | `NovaGames.Mobile.Core` | `Core/Runtime` | `Unity.Serialization` | luôn có |
 | `NovaGames.Mobile.Core.Editor` | `Core/Editor` | Core | Editor |
 | `NovaGames.Mobile.Facade` | `Facade/Runtime` | Core | luôn có (autoReferenced) |
-| `NovaGames.Mobile.Facade.Editor` | `Facade/Editor` | Core, Facade | Editor |
+| `NovaGames.Mobile.Facade.Editor` | `Facade/Editor` | Core, Facade, Bootstrap | Editor |
 | `NovaGames.Mobile.Ads.Max` | `Ads.Max/Runtime` | Core, `MaxSdk.Scripts` | `NOVA_MAX` (`com.applovin.mediation.ads` ≥ 8.0.0) |
 | `NovaGames.Mobile.Ads.AdMob` | `Ads.AdMob/Runtime` | Core, `GoogleMobileAds*.dll` | `NOVA_ADMOB` (`com.google.ads.mobile` ≥ 11.0.0) |
 | `NovaGames.Mobile.Firebase` | `Firebase/Runtime/Core` | Core, Firebase.App | `NOVA_FIREBASE_APP` |
@@ -109,6 +110,7 @@ Packages/com.novagames.sdk/
 | `NovaGames.Mobile.NoInternet` | `NoInternet/Runtime` | Core, Facade, UI | luôn có (autoReferenced) |
 | `NovaGames.Mobile.Rating` | `Rating/Runtime` | Core, Facade, UI | luôn có (autoReferenced) |
 | `NovaGames.Mobile.Rating.PlayReview` | `Rating/Runtime/PlayReview` | Rating, Google.Play.Review | `NOVA_PLAY_REVIEW`, Android/Editor |
+| `NovaGames.Mobile.Bootstrap` | `Bootstrap/Runtime` | Core, Facade, NoInternet, Rating, UI, Unity.InputSystem (nếu có) | luôn có (autoReferenced) |
 | `NovaGames.Mobile.Samples` | `Samples/Scripts` | Core, Facade, NoInternet, Rating | không autoReferenced |
 | `NovaGames.Mobile.Samples.Editor` | `Samples/Editor` | Samples, Core | Editor |
 | `NovaGames.Mobile.Testing` | `Tests/Shared` | Core | `UNITY_INCLUDE_TESTS` |
@@ -219,9 +221,10 @@ Packages/com.novagames.sdk/
 | `Runtime/NovaNoInternet.cs` | Cờ bật/tắt, trạng thái popup mất mạng, giả lập offline. |
 | `Runtime/NovaNotifications.cs` | Facade thông báo local: lên lịch, hủy, xin quyền, sự kiện `Opened`. |
 | `Runtime/NovaPrivacy.cs` | Consent UMP (trạng thái, form Privacy options) và ATT iOS. |
-| `Runtime/NovaRemoteConfig.cs` | Đọc Remote Config theo enum key, `FetchAsync`, sự kiện `Updated`. |
+| `Runtime/NovaRemoteConfig.cs` | Đọc Remote Config theo enum key, `FetchAsync`, sự kiện `Updated`; `TryGet` (internal) đọc theo tên key cho prefab NovaSdk. |
 | `Editor/AttBuildStep.cs` | Post-build iOS: link `AppTrackingTransparency.framework`, ghi `NSUserTrackingUsageDescription`. |
 | `Editor/NovaSettingsLocator.cs` | Tìm asset `NovaSdkSettings` cho bước build (ưu tiên asset của game hơn asset của sample). |
+| `Editor/NovaSetupWindow.cs` | Menu *NovaGames > Setup*: checklist tích hợp, nút tạo NovaSdkSettings / asset config / script RemoteKey, thêm prefab NovaSdk vào scene; tự mở một lần khi project chưa có NovaSdkSettings. |
 | `Editor/ReleaseBuildValidator.cs` | Kiểm tra trước khi build Android/iOS, chặn bản release cấu hình sai; menu *Check Release Build*. |
 
 ### Ads.Max, Ads.AdMob
@@ -264,7 +267,7 @@ Packages/com.novagames.sdk/
 | `Runtime/Adjust/AssemblyInfo.cs` | `InternalsVisibleTo` cho test. |
 | `Runtime/Adjust/IsExternalInit.cs` | Polyfill `record`/`init`. |
 
-### Privacy, Iap, Notifications, NoInternet, Rating
+### Privacy, Iap, Notifications, NoInternet, Rating, Bootstrap
 
 | File | Chức năng |
 |---|---|
@@ -282,21 +285,21 @@ Packages/com.novagames.sdk/
 | `Rating/Runtime/NovaRating.cs` | Facade tĩnh `NovaRating` + interface `IInAppReviewProvider`. |
 | `Rating/Runtime/RatingPopup.cs` | Popup 5 sao: đủ sao → store, ít sao → góp ý, Later/Never. |
 | `Rating/Runtime/PlayReview/PlayInAppReviewProvider.cs` | Google Play In-App Review, tự gắn vào `NovaRating`. |
+| `Bootstrap/Runtime/NovaSdkBootstrap.cs` | Component của prefab NovaSdk: gọi `NovaSdk.InitializeAsync`, tạo popup mất mạng + đánh giá, tạo EventSystem khi scene chưa có, áp Remote Config (`no_internet_popup_on`, `level_show_rate`) theo tên key; `DontDestroyOnLoad`, giữ một bản. |
 
-Asset kèm module: `NoInternet/Prefabs/NoInternetPopup.prefab` (Canvas sortingOrder 30000), `Rating/Prefabs/RatingPopup.prefab` (sortingOrder 29000), `Rating/Prefabs/Star.png`.
+Asset kèm module: `NoInternet/Prefabs/NoInternetPopup.prefab` (Canvas sortingOrder 30000), `Rating/Prefabs/RatingPopup.prefab` (sortingOrder 29000), `Rating/Prefabs/Star.png`, `Bootstrap/Prefabs/NovaSdk.prefab`.
 
 ### Samples
 
 | File | Chức năng |
 |---|---|
-| `Scripts/GameService.cs` | Khởi động SDK cho scene Demo, tạo popup No Internet, áp Remote Config vào NoInternet/Rating. |
 | `Scripts/RemoteKey.cs` | Enum key Remote Config mẫu (`[RemoteDefault]`) và `RemoteKeys.Ads` nối key Ads. |
 | `Scripts/GameRemoteConfig.cs` | Asset Remote Config Definitions theo `RemoteKey`, cài `IAdsConfigKeysSource`. |
 | `Scripts/SampleAds.cs` | Hằng số tên placement mẫu (`Placements`). |
 | `Scripts/SdkDemoPanel.cs` | Panel demo: status, log, mỗi nút gọi một API `Nova*`. |
 | `Editor/GameRemoteConfigContextMenu.cs` | Menu *Add Missing Enum Entries*: thêm dòng còn thiếu từ enum vào asset. |
 
-Asset mẫu: `Scenes/Demo.unity`; `Data/NovaSdkSettings.asset` (consent Assume granted, ads chạy AdMob), `GameRemoteConfig.asset`, `MaxAdsConfig.asset`, `AdMobAdsConfig.asset`, `AdjustTrackingConfig.asset`, `IapConfig.asset` (remove_ads, gem_pack_1), `NotificationConfig.asset`.
+Asset mẫu: `Scenes/Demo.unity` (khởi động bằng component `NovaSdkBootstrap` trên GameObject `NovaSdk`); `Data/NovaSdkSettings.asset` (consent Assume granted, ads chạy AdMob), `GameRemoteConfig.asset`, `MaxAdsConfig.asset`, `AdMobAdsConfig.asset`, `AdjustTrackingConfig.asset`, `IapConfig.asset` (remove_ads, gem_pack_1), `NotificationConfig.asset`.
 
 ### Tests
 

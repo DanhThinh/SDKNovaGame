@@ -1848,7 +1848,7 @@ GameObject:
   - component: {fileID: 479875297}
   - component: {fileID: 479875296}
   m_Layer: 0
-  m_Name: GameService
+  m_Name: NovaSdk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1863,7 +1863,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 479875295}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a9a764cdce45f17488b25edae80ba856, type: 3}
+  m_Script: {fileID: 11500000, guid: 8ea5cf5ec1d94a34a485e15c74e770d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   settings: {fileID: 11400000, guid: 8b73eb18b75f433cbd12b838957fcea8, type: 2}

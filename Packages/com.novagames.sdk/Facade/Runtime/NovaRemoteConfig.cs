@@ -60,6 +60,21 @@ namespace NovaGames.Mobile
             s_subscription = service.Current.Subscribe(_ => Updated?.Invoke(), emitCurrent: false);
         }
 
+        // Đọc theo tên key cho component của SDK (NovaSdkBootstrap) không biết enum của game. false = chưa init hoặc
+        // asset Remote Config Definitions không khai báo key này với kiểu T.
+        internal static bool TryGet<T>(string name, out T value)
+        {
+            value = default!;
+            if (s_definitions == null || string.IsNullOrEmpty(name)) return false;
+            foreach (var key in s_definitions.AllKeys)
+            {
+                if (key.Name != name || key is not ConfigKey<T> typed) continue;
+                value = s_service != null ? s_service.Get(typed) : typed.Default;
+                return true;
+            }
+            return false;
+        }
+
         static T Read<TKey, T>(TKey key, Func<RemoteConfigDefinitions<TKey>, TKey, ConfigKey<T>> pick, T missing)
             where TKey : struct, Enum
         {

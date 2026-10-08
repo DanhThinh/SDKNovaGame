@@ -2,6 +2,44 @@
 
 Tài liệu cho dev Unity tích hợp SDK vào game. Cấu trúc code và chức năng từng script: xem `Overview.md`.
 
+## Bắt đầu nhanh — import xong làm gì?
+
+Làm lần lượt từ trên xuống. Bước nào thuộc module game không dùng thì bỏ qua: SDK vẫn compile và chạy, module đó tự tắt.
+
+**A. Bắt buộc (mọi game)**
+
+1. Thêm package vào `Packages/manifest.json` (mục 2), mở Unity, chờ compile xong, không có lỗi đỏ.
+2. Mở **NovaGames > Setup** (lần đầu tự mở). Cửa sổ này là checklist: dòng nào có dấu cảnh báo thì bấm nút bên cạnh.
+3. Bấm **Tạo** ở dòng *NovaSdkSettings* → được `Assets/NovaGames/NovaSdkSettings.asset`.
+4. Mở scene đầu tiên của game, bấm **Thêm vào scene** → prefab `NovaSdk` được thêm và gán sẵn settings. (Làm tay: kéo `Packages/NovaGames Mobile SDK/Bootstrap/Prefabs/NovaSdk` vào scene, kéo `NovaSdkSettings` vào ô *Settings*.)
+5. Play. Console có log `[Nova]` và không có lỗi `Settings:` là xong. Prefab đã lo: khởi tạo SDK, popup mất mạng, popup đánh giá, EventSystem. Mọi API `Nova*` gọi được ở bất kỳ scene nào.
+
+**B. Chọn module cần dùng → cài vendor → điền config**
+
+Phần *Module* trong cửa sổ Setup cho biết vendor nào đã cài; cài xong thì bấm **Tạo …Config** để tạo asset và gán vào `NovaSdkSettings`, rồi điền ID vào asset đó.
+
+| Muốn dùng | Cài vendor (mục 2) | Asset config | Việc làm tay |
+|---|---|---|---|
+| Firebase (Analytics, Crashlytics) | Firebase App + Analytics/Crashlytics | — | Thả `google-services.json` / `GoogleService-Info.plist` vào `Assets/` |
+| Remote Config | Firebase App + Remote Config | `GameRemoteConfig` (mục 7) | Setup bấm **Tạo script** để sinh `RemoteKey.cs`; thêm key của game vào enum |
+| Ads MAX | AppLovin MAX + Google Mobile Ads (cho UMP) | `MaxAdsConfig` | SDK key trong *AppLovin > Integration Manager* |
+| Ads AdMob | Google Mobile Ads | `AdMobAdsConfig` | App ID trong *Assets > Google Mobile Ads > Settings* |
+| Consent GDPR (UMP) | Google Mobile Ads | — | Publish message trên AdMob console (mục 5) |
+| Adjust | Adjust Unity SDK | `AdjustTrackingConfig` | — |
+| IAP | `com.unity.purchasing` | `IapConfig` | Android: *NovaGames > IAP > Google Play License Key* |
+| Notifications | `com.unity.mobile.notifications` | `NotificationConfig` | Chỉnh *Project Settings > Mobile Notifications* (mục 2) |
+| Popup mất mạng / Đánh giá | — (Rating Android: Play In-App Review, tùy chọn) | — | Có sẵn trong prefab `NovaSdk` (mục 12, 13) |
+
+Sau khi cài vendor bằng `.unitypackage`: bấm **Refresh Vendor Defines** (trong Setup hoặc menu NovaGames).
+
+**C. Trước khi build release**
+
+1. Bấm **Check Release Build** (trong Setup hoặc menu NovaGames), sửa hết lỗi.
+2. Bỏ tick *Use Google Test Ids* trong `AdMobAdsConfig`; `consentSource` không để *Assume granted*.
+3. Test mua IAP thật, test ads trên máy thật.
+
+**Sample Demo dùng để làm gì?** Chỉ để xem cách gọi API. Không kéo asset trong `Data/` của sample vào game (đó là cấu hình test: *Assume granted*, ad unit test). Xem xong thì **xóa thư mục sample** khỏi `Assets/Samples`, nếu không sẽ có 2 menu *Remote Config Definitions* trùng nhau.
+
 ## Mục lục
 
 1. [Nguyên tắc](#1-nguyên-tắc)
@@ -116,6 +154,25 @@ Các mục trong Inspector của `NovaSdkSettings`:
 Lúc khởi động, SDK log các lỗi cấu hình với prefix `Settings:` (asset kéo nhầm ô MAX/AdMob, thiếu ID, test ID trong bản release, ATT Usage Description rỗng…).
 
 ## 4. Khởi tạo SDK
+
+**Cách 1 — prefab (khuyến nghị):** kéo `Bootstrap/Prefabs/NovaSdk` (trong *Packages > NovaGames Mobile SDK*) vào scene đầu tiên, gán `NovaSdkSettings` vào ô *Settings* (hoặc bấm *Thêm vào scene* trong **NovaGames > Setup**). Prefab:
+
+- gọi `NovaSdk.InitializeAsync(settings)` một lần, sống qua mọi scene (`DontDestroyOnLoad`); đặt prefab ở nhiều scene cũng chỉ giữ một bản;
+- tạo popup mất mạng và popup đánh giá (để trống ô prefab tương ứng nếu không dùng);
+- tạo `EventSystem` khi scene chưa có (scene có EventSystem riêng thì bản của SDK tự tắt);
+- áp Remote Config: key Bool `no_internet_popup_on` bật/tắt popup mất mạng, key Int `level_show_rate` → `NovaRating.MinLevel`. Đổi tên key ngay trên Inspector; asset Remote Config không có key đó thì bỏ qua.
+
+Scene đầu chuyển sang scene chính sau khi SDK sẵn sàng:
+
+```csharp
+async void Start()
+{
+    await NovaSdk.WhenReady;
+    SceneManager.LoadScene("Home");
+}
+```
+
+**Cách 2 — tự viết script:**
 
 ```csharp
 using NovaGames.Mobile;
@@ -260,7 +317,7 @@ Asset Remote Config của game cài `IAdsConfigKeysSource` để map key (mẫu:
 
 ### Khai báo key
 
-Assembly của sample không được code game tự reference, nên **copy** 3 file mẫu vào code game (đổi namespace `NovaGames.Mobile.Samples` cho hợp game) rồi sửa: `Scripts/RemoteKey.cs`, `Scripts/GameRemoteConfig.cs`, `Editor/GameRemoteConfigContextMenu.cs` của sample Demo (file cuối đặt trong thư mục `Editor`).
+Bấm **Tạo script** ở dòng *Remote Config* trong **NovaGames > Setup**: SDK sinh `Assets/NovaGames/Scripts/RemoteKey.cs`, `GameRemoteConfig.cs` và `Editor/GameRemoteConfigContextMenu.cs` (namespace nhập trong cửa sổ, mặc định `Game`), compile xong tự tạo asset `GameRemoteConfig`, thêm sẵn mọi key và gán vào `NovaSdkSettings`. Sau đó chỉ cần sửa enum `RemoteKey`. (Làm tay: copy 3 file trên từ sample Demo, đổi namespace `NovaGames.Mobile.Samples`.)
 
 ```csharp
 public enum RemoteKey
@@ -398,7 +455,7 @@ if (NovaNotifications.Permission == NotificationPermission.Denied) NovaNotificat
 
 ## 12. Popup mất mạng — NovaNoInternet
 
-- Kéo `NoInternet/Prefabs/NoInternetPopup.prefab` (trong *Packages > NovaGames Mobile SDK*; muốn đổi giao diện thì tạo Prefab Variant trong Assets) vào scene đầu tiên (hoặc `Instantiate` lúc khởi động). Scene cần có `EventSystem`. Popup tự `DontDestroyOnLoad`, chỉ giữ một instance.
+- Prefab `NovaSdk` (mục 4) tự tạo popup từ `NoInternet/Prefabs/NoInternetPopup.prefab`. Đổi giao diện: tạo Prefab Variant trong Assets rồi kéo vào ô *No Internet Popup Prefab* của `NovaSdk`. Không dùng prefab `NovaSdk` thì kéo popup vào scene đầu tiên (scene cần có `EventSystem`). Popup tự `DontDestroyOnLoad`, chỉ giữ một instance.
 - Field trên prefab: Show After Seconds (2 s), Hide After Seconds (0.5 s), Check Interval, Pause Game, Keep Across Scenes, Still Offline Message.
 
 ```csharp
@@ -408,14 +465,14 @@ NovaNoInternet.VisibilityChanged += showing => { };
 ```
 
 - Khác: `IsInternetReachable`, `IsShowing`, sự kiện `EnabledChanged`.
-- Bật/tắt từ xa: Remote Config `no_internet_popup_on` (xem `Scripts/GameService.cs` trong sample Demo).
+- Bật/tắt từ xa: Remote Config `no_internet_popup_on` (prefab `NovaSdk` tự áp).
 - Đang hiện ad full-screen thì popup đợi ad đóng; MREC bị ẩn khi popup hiện và hiện lại đúng vị trí cũ.
 - Phát hiện mạng dựa trên `Application.internetReachability`: Wi-Fi cần đăng nhập (captive portal) vẫn bị coi là có mạng.
 - Nút Settings: Android mở cài đặt mạng; iOS chỉ mở được cài đặt của app.
 
 ## 13. Đánh giá app — NovaRating
 
-- Kéo `Rating/Prefabs/RatingPopup.prefab` (trong *Packages > NovaGames Mobile SDK*, đổi giao diện bằng Prefab Variant) vào scene cần hỏi (GameObject phải active, scene cần `EventSystem`).
+- Prefab `NovaSdk` (mục 4) tự tạo popup từ `Rating/Prefabs/RatingPopup.prefab`, dùng được ở mọi scene. Đổi giao diện: Prefab Variant rồi kéo vào ô *Rating Popup Prefab*. Cũng có thể đặt popup riêng trong scene (GameObject active, scene có `EventSystem`): popup bật sau cùng được dùng.
 - Android: dùng Google Play In-App Review nếu có package, không thì mở trang store. iOS: điền Apple App Id trên component.
 - Field trên prefab: Min Level, Later Cooldown Hours, Max Prompts, Store Review Min Stars, Auto Rate On Max Stars, Feedback Email, màu sao, Keep Across Scenes.
 
@@ -451,6 +508,7 @@ NovaCrash.TestNonFatal(); NovaCrash.TestCrash(); // TestCrash chỉ chạy ở D
 
 | Menu | Chức năng |
 |---|---|
+| **NovaGames > Setup** | Checklist tích hợp, nút tạo settings/config/script RemoteKey, thêm prefab NovaSdk vào scene |
 | **NovaGames > Check Release Build** | Kiểm tra cấu hình release |
 | **NovaGames > Refresh Vendor Defines** | Quét lại vendor và set define `NOVA_*` |
 | **NovaGames > Show SDK Logs In Build** | Bật log `[Nova][module]` trong bản build (define `NOVA_SDK_LOG`); Editor luôn có log |
@@ -462,7 +520,7 @@ Khi build Android/iOS **release** (không tick Development Build), các lỗi sa
 ## 16. Scene Demo
 
 - Import sample Demo (mục 2), mở `Scenes/Demo.unity` rồi Play. Trong project SDK, sample nằm ở `Assets/NovaSdkSamples/Demo`.
-- `GameService` gọi `NovaSdk.InitializeAsync` với `Data/NovaSdkSettings.asset` của sample (consent *Assume granted*, toàn bộ ads chạy AdMob), sau đó áp Remote Config vào NoInternet và Rating.
+- GameObject `NovaSdk` (component `NovaSdkBootstrap`, giống prefab NovaSdk) khởi động SDK với `Data/NovaSdkSettings.asset` của sample (consent *Assume granted*, toàn bộ ads chạy AdMob); popup đánh giá đặt sẵn trong scene.
 - `SdkDemoPanel` có nút cho privacy, Remote Config, analytics, 5 loại ads, level ±1, notifications, No Internet, rating, Crashlytics, IAP. Status cập nhật mỗi 0,5 s, log giữ 6 dòng gần nhất.
 - Thêm nút: viết hàm public trong `SdkDemoPanel`, nhân bản một nút có sẵn trong scene và gán `OnClick` tới hàm đó.
 
@@ -470,10 +528,10 @@ Khi build Android/iOS **release** (không tick Development Build), các lỗi sa
 
 | Triệu chứng | Nguyên nhân / cách xử lý |
 |---|---|
-| Log "settings is null" | Chưa kéo `NovaSdkSettings` vào script. SDK vẫn Ready nhưng mọi API là no-op. |
+| Log "settings is null" / "kéo asset NovaSdkSettings vào ô Settings" | Chưa kéo `NovaSdkSettings` vào prefab `NovaSdk` (hoặc script tự viết). SDK vẫn Ready nhưng mọi API là no-op. |
 | "must be called on Unity's main thread" | `InitializeAsync` gọi từ thread khác. |
 | "Remote Config is not ready…" / "uses Remote Config Definitions of X, not Y" | Chưa gán Remote Config Definitions, hoặc gọi `GetInt` với enum khác enum của asset. |
-| Code game không thấy `RemoteKey` | Assembly của sample không được auto-reference; copy file mẫu vào game (mục 7). |
+| Code game không thấy `RemoteKey` | Assembly của sample không được auto-reference; tạo script bằng **NovaGames > Setup** (mục 7). |
 | Ads không load | Chưa có consent (Consent Source = Game mà chưa `SetConsent`; UMP chưa cài), adapter chưa cài, hoặc mediation = None. Xem log `Ads:` lúc khởi động. |
 | Interstitial không hiện | Level < `ad_inter_start_level`, đang capping, kill switch, hoặc đã mua `remove_ads`. |
 | Ads tắt hẳn trong Editor | Đã mua `remove_ads` bằng test store — *Edit > Clear All PlayerPrefs*. |

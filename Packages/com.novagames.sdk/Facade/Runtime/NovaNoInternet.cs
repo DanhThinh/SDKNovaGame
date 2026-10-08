@@ -6,7 +6,7 @@ namespace NovaGames.Mobile
 {
     /// <summary>
     /// Bật/tắt popup "No Internet" và trạng thái của nó. Popup là prefab <c>NoInternet/Prefabs/NoInternetPopup</c>
-    /// (kéo vào GameService); class này chỉ giữ cờ bật/tắt để game, Remote Config và nút test cùng điều khiển.
+    /// (prefab NovaSdk tự tạo); class này chỉ giữ cờ bật/tắt để game, Remote Config và nút test cùng điều khiển.
     /// <code>
     /// NovaNoInternet.Enabled = false;                   // tắt ở màn hình chơi offline được (vd. tutorial)
     /// NovaNoInternet.VisibilityChanged += shown => { };

@@ -3,7 +3,8 @@
     "rootNamespace": "NovaGames.Mobile.Editor",
     "references": [
         "NovaGames.Mobile.Core",
-        "NovaGames.Mobile.Facade"
+        "NovaGames.Mobile.Facade",
+        "NovaGames.Mobile.Bootstrap"
     ],
     "includePlatforms": [
         "Editor"

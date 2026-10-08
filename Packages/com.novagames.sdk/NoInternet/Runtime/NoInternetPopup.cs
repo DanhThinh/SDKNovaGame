@@ -9,7 +9,7 @@ namespace NovaGames.Mobile.NoInternet
 {
     /// <summary>
     /// Popup "No Internet": mất mạng thì che màn hình, dừng game, ẩn MREC, chặn app open; có mạng lại thì tự đóng và
-    /// khôi phục. Dùng prefab <c>NoInternet/Prefabs/NoInternetPopup</c> (kéo vào GameService, hoặc đặt sẵn trong scene
+    /// khôi phục. Dùng prefab <c>NoInternet/Prefabs/NoInternetPopup</c> (prefab NovaSdk tự tạo, hoặc đặt sẵn trong scene
     /// đầu tiên). Bật/tắt bằng <see cref="NovaNoInternet.Enabled"/>. Sửa chữ/màu trực tiếp trong prefab.
     /// </summary>
     [DisallowMultipleComponent]
