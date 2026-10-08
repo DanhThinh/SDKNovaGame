@@ -9,6 +9,9 @@ using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Security;
 
+// Package adapters can be used only through runtime registration, without a scene reference.
+[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
+
 namespace NovaGames.Mobile.Iap
 {
     /// <summary>

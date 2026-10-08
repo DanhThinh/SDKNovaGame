@@ -10,6 +10,9 @@ using NovaGames.Mobile.Privacy;
 using NovaGames.Mobile.Tracking;
 using UnityEngine;
 
+// Package adapters can be used only through runtime registration, without a scene reference.
+[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
+
 namespace NovaGames.Mobile.Attribution
 {
     /// <summary>

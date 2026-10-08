@@ -1334,6 +1334,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9328dcacd9a28004b8735602fe00f8a8, type: 3}
+--- !u!114 &365037576 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6271035582527274683, guid: 9328dcacd9a28004b8735602fe00f8a8, type: 3}
+  m_PrefabInstance: {fileID: 365037575}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32efa2f7922582f49966c6625225d4da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &389497457
 GameObject:
   m_ObjectHideFlags: 0
@@ -1869,6 +1880,10 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: 8b73eb18b75f433cbd12b838957fcea8, type: 2}
   noInternetPopup: 1
   noInternetPopupPrefab: {fileID: 7925275564257837955, guid: 5f64066db21f8da478fc788aab5c0dad, type: 3}
+  noInternetRemoteKey: no_internet_popup_on
+  ratingPopupPrefab: {fileID: 365037576}
+  ratingMinLevelRemoteKey: level_show_rate
+  createEventSystem: 1
 --- !u!4 &479875297
 Transform:
   m_ObjectHideFlags: 0

@@ -10,6 +10,9 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 #endif
 
+// Package adapters can be used only through runtime registration, without a scene reference.
+[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
+
 namespace NovaGames.Mobile.Privacy.Att
 {
     /// <summary>

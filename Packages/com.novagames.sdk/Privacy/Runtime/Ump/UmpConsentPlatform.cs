@@ -6,6 +6,9 @@ using NovaGames.Mobile.Bootstrap;
 using NovaGames.Mobile.Infrastructure;
 using UnityEngine;
 
+// Package adapters can be used only through runtime registration, without a scene reference.
+[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
+
 namespace NovaGames.Mobile.Privacy.Ump
 {
     /// <summary>
