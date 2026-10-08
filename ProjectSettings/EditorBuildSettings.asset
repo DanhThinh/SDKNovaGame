@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Nova3rd/Samples/Scenes/Demo.unity
+    path: Assets/NovaSdkSamples/Demo/Scenes/Demo.unity
     guid: 809c9c906bd76a04ab1a31282fbfc578
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
