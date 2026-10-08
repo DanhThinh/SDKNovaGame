@@ -1,0 +1,36 @@
+# EditMode test của NovaGames SDK. Chạy trên máy Windows tự host (self-hosted runner) đã cài Unity 6000.0.68f1
+# qua Unity Hub và đã kích hoạt license; gắn label "unity" cho runner đó.
+# Dùng runner của GitHub thay vì máy riêng: xem game-ci/unity-test-runner (cần secret UNITY_LICENSE).
+name: SDK EditMode tests
+
+on:
+  push:
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+      - 'ProjectSettings/**'
+      - 'ci/**'
+      - '.github/workflows/sdk-editmode-tests.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  editmode:
+    runs-on: [self-hosted, windows, unity]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Giữ Library/ giữa các lần chạy để Unity không phải import lại toàn bộ project.
+          clean: false
+
+      - name: Run EditMode tests
+        shell: powershell
+        run: ./ci/run-editmode-tests.ps1
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editmode-results
+          path: TestResults/

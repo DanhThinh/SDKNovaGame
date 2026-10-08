@@ -1,0 +1,20 @@
+{
+    "name": "NovaGames.Mobile.Rating.PlayReview",
+    "rootNamespace": "NovaGames.Mobile.Rating",
+    "references": [
+        "NovaGames.Mobile.Rating",
+        "Google.Play.Review",
+        "Google.Play.Common"
+    ],
+    "includePlatforms": ["Android", "Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_PLAY_REVIEW"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

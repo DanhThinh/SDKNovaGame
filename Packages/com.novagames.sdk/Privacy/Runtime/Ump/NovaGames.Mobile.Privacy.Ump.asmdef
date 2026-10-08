@@ -1,0 +1,26 @@
+{
+    "name": "NovaGames.Mobile.Privacy.Ump",
+    "rootNamespace": "NovaGames.Mobile.Privacy.Ump",
+    "references": [
+        "NovaGames.Mobile.Core"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "GoogleMobileAds.Ump.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_UMP"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.google.ads.mobile",
+            "expression": "11.0.0",
+            "define": "NOVA_UMP"
+        }
+    ],
+    "noEngineReferences": false
+}

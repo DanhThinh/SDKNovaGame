@@ -1,0 +1,27 @@
+{
+    "name": "NovaGames.Mobile.Ads.AdMob",
+    "rootNamespace": "NovaGames.Mobile.Ads.AdMob",
+    "references": [
+        "NovaGames.Mobile.Core"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "GoogleMobileAds.dll",
+        "GoogleMobileAds.Core.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_ADMOB"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.google.ads.mobile",
+            "expression": "11.0.0",
+            "define": "NOVA_ADMOB"
+        }
+    ],
+    "noEngineReferences": false
+}

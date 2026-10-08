@@ -1,0 +1,52 @@
+{
+    "name": "NovaGames.Mobile.Firebase.Tests.Editor",
+    "rootNamespace": "NovaGames.Mobile.Firebase.Tests",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Testing",
+        "NovaGames.Mobile.Firebase",
+        "NovaGames.Mobile.Firebase.RemoteConfig",
+        "NovaGames.Mobile.Firebase.Analytics",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Firebase.App.dll",
+        "Firebase.Platform.dll",
+        "Firebase.TaskExtension.dll",
+        "Firebase.RemoteConfig.dll",
+        "Firebase.Analytics.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "NOVA_FIREBASE_APP",
+        "NOVA_FIREBASE_REMOTE_CONFIG",
+        "NOVA_FIREBASE_ANALYTICS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.google.firebase.app",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_APP"
+        },
+        {
+            "name": "com.google.firebase.remote-config",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_REMOTE_CONFIG"
+        },
+        {
+            "name": "com.google.firebase.analytics",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_ANALYTICS"
+        }
+    ],
+    "noEngineReferences": false
+}

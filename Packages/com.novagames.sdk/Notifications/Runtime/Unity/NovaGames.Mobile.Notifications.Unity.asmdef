@@ -1,0 +1,26 @@
+{
+    "name": "NovaGames.Mobile.Notifications.Unity",
+    "rootNamespace": "NovaGames.Mobile.Notifications",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "Unity.Notifications.Android",
+        "Unity.Notifications.iOS"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_NOTIFICATIONS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.mobile.notifications",
+            "expression": "2.0.0",
+            "define": "NOVA_NOTIFICATIONS"
+        }
+    ],
+    "noEngineReferences": false
+}

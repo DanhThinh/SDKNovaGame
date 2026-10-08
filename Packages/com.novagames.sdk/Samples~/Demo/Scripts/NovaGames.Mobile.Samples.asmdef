@@ -1,0 +1,19 @@
+{
+    "name": "NovaGames.Mobile.Samples",
+    "rootNamespace": "NovaGames.Mobile.Samples",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "GUID:ae98e651e457fd64fbf63e77198c6653",
+        "NovaGames.Mobile.NoInternet",
+        "NovaGames.Mobile.Rating"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

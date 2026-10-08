@@ -1,0 +1,16 @@
+{
+    "name": "NovaGames.Mobile.Facade",
+    "rootNamespace": "NovaGames.Mobile",
+    "references": [
+        "NovaGames.Mobile.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,26 @@
+{
+    "name": "NovaGames.Mobile.Facade.Tests.Editor",
+    "rootNamespace": "NovaGames.Mobile.Tests",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Facade",
+        "NovaGames.Mobile.Testing",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,36 @@
+{
+    "name": "NovaGames.Mobile.Firebase.Analytics",
+    "rootNamespace": "NovaGames.Mobile.Firebase",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Firebase"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS", "LinuxStandalone64", "macOSStandalone", "WindowsStandalone64"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Firebase.App.dll",
+        "Firebase.Platform.dll",
+        "Firebase.TaskExtension.dll",
+        "Firebase.Analytics.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_FIREBASE_APP",
+        "NOVA_FIREBASE_ANALYTICS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.google.firebase.app",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_APP"
+        },
+        {
+            "name": "com.google.firebase.analytics",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_ANALYTICS"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,0 +1,25 @@
+{
+    "name": "NovaGames.Mobile.Ads.Max",
+    "rootNamespace": "NovaGames.Mobile.Ads.Max",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "MaxSdk.Scripts"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_MAX"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.applovin.mediation.ads",
+            "expression": "8.0.0",
+            "define": "NOVA_MAX"
+        }
+    ],
+    "noEngineReferences": false
+}

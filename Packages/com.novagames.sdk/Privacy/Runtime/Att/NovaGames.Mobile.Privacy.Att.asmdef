@@ -1,0 +1,16 @@
+{
+    "name": "NovaGames.Mobile.Privacy.Att",
+    "rootNamespace": "NovaGames.Mobile.Privacy.Att",
+    "references": [
+        "NovaGames.Mobile.Core"
+    ],
+    "includePlatforms": ["Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

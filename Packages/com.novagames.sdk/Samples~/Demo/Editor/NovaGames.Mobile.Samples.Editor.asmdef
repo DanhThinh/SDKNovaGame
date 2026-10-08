@@ -1,0 +1,19 @@
+{
+    "name": "NovaGames.Mobile.Samples.Editor",
+    "rootNamespace": "NovaGames.Mobile.Samples.Editor",
+    "references": [
+        "NovaGames.Mobile.Samples",
+        "NovaGames.Mobile.Core"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

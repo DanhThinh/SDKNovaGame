@@ -1,0 +1,33 @@
+{
+    "name": "NovaGames.Mobile.Ads.Max.Tests.Editor",
+    "rootNamespace": "NovaGames.Mobile.Ads.Max.Tests",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Testing",
+        "NovaGames.Mobile.Ads.Max",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "NOVA_MAX"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.applovin.mediation.ads",
+            "expression": "8.0.0",
+            "define": "NOVA_MAX"
+        }
+    ],
+    "noEngineReferences": false
+}

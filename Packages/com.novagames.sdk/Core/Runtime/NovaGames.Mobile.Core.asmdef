@@ -1,0 +1,16 @@
+{
+    "name": "NovaGames.Mobile.Core",
+    "rootNamespace": "NovaGames.Mobile",
+    "references": [
+        "Unity.Serialization"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,25 @@
+{
+    "name": "NovaGames.Mobile.Attribution.Adjust",
+    "rootNamespace": "NovaGames.Mobile.Attribution",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "AdjustSdk.Scripts"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_ADJUST"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.adjust.sdk",
+            "expression": "5.0.0",
+            "define": "NOVA_ADJUST"
+        }
+    ],
+    "noEngineReferences": false
+}

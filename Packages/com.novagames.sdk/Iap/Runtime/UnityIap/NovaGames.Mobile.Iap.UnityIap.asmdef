@@ -1,0 +1,28 @@
+{
+    "name": "NovaGames.Mobile.Iap.UnityIap",
+    "rootNamespace": "NovaGames.Mobile.Iap",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "Unity.Purchasing",
+        "Unity.Purchasing.Security",
+        "Unity.Purchasing.SecurityStub",
+        "Unity.Purchasing.SecurityCore"
+    ],
+    "includePlatforms": ["Android", "Editor", "iOS"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_IAP"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.purchasing",
+            "expression": "5.0.0",
+            "define": "NOVA_IAP"
+        }
+    ],
+    "noEngineReferences": false
+}

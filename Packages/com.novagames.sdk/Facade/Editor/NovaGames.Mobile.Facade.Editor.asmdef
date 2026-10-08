@@ -1,0 +1,19 @@
+{
+    "name": "NovaGames.Mobile.Facade.Editor",
+    "rootNamespace": "NovaGames.Mobile.Editor",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Facade"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

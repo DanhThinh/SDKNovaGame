@@ -1,0 +1,24 @@
+{
+    "name": "NovaGames.Mobile.Firebase.Editor",
+    "rootNamespace": "NovaGames.Mobile.Firebase.Editor",
+    "references": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "NOVA_FIREBASE_ANALYTICS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.google.firebase.analytics",
+            "expression": "13.0.0",
+            "define": "NOVA_FIREBASE_ANALYTICS"
+        }
+    ],
+    "noEngineReferences": false
+}

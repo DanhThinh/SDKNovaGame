@@ -1,0 +1,34 @@
+{
+    "name": "NovaGames.Mobile.Attribution.Adjust.Tests.Editor",
+    "rootNamespace": "NovaGames.Mobile.Attribution.Tests",
+    "references": [
+        "NovaGames.Mobile.Core",
+        "NovaGames.Mobile.Testing",
+        "NovaGames.Mobile.Attribution.Adjust",
+        "AdjustSdk.Scripts",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "NOVA_ADJUST"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.adjust.sdk",
+            "expression": "5.0.0",
+            "define": "NOVA_ADJUST"
+        }
+    ],
+    "noEngineReferences": false
+}
