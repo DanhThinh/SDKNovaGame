@@ -17,7 +17,7 @@ namespace NovaGames.Mobile.Samples
         [RemoteDefault(ConfigValueType.Bool, "true")] open_ad_on_off = 2,
         [RemoteDefault(ConfigValueType.Bool, "true")] banner_ad_on_off = 3,
         [RemoteDefault(ConfigValueType.Bool, "true")] ad_mrec_enabled = 6,
-        // Bid floor cascade của MAX (A/B), adapter MAX đọc lúc init theo tên (MaxFloorKeys.Default); khai báo ở đây để
+        // Bid floor cascade 3 ID (A/B) của MAX và AdMob, adapter đọc lúc init theo tên; khai báo ở đây để
         // asset có default và Remote Config validate được.
         [RemoteDefault(ConfigValueType.Bool, "false")] ad_inter_floor_enabled = 7,
         [RemoteDefault(ConfigValueType.Bool, "false")] ad_rewarded_floor_enabled = 8,

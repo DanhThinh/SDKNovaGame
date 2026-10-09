@@ -78,6 +78,7 @@ namespace NovaGames.Mobile
             bool isIos = Application.platform == RuntimePlatform.IPhonePlayer;
             var setup = settings.ToSetup(isDevelopment, isIos, Application.isEditor);
             var runtimeSettings = isDevelopment ? RuntimeSdkSettings.Development : RuntimeSdkSettings.Production;
+            if (setup.RemoteConfigOptions != null) runtimeSettings = runtimeSettings with { RemoteConfig = setup.RemoteConfigOptions };
             if (setup.AdjustSettings != null && settings.Adjust != null)
                 runtimeSettings = runtimeSettings.WithSinkSettings(settings.Adjust.SinkId, setup.AdjustSettings);
 
@@ -181,11 +182,14 @@ namespace NovaGames.Mobile
                 // 1. Remote Config: giá trị đã lưu dùng được ngay, fetch chạy song song với tracking.
                 registry.RemoteConfigSources.TryGetValue(RemoteConfigSourceIds.Firebase, out var sourceFactory);
                 runtime.RemoteConfig = new RemoteConfigService(sourceFactory?.Invoke(ctx), ctx.Store, ctx.Clock,
-                    ctx.Logs.Create("remote_config"), ctx.Settings.RemoteConfig, setup.RemoteKeys);
+                    ctx.Logs.Create("remote_config"), ctx.Settings.RemoteConfig, setup.RemoteKeys, ctx.Main, ctx.Scheduler);
                 runtime.RemoteConfig.LoadCache();
                 NovaRemoteConfig.Attach(runtime.RemoteConfig, setup.RemoteConfig, ctx.Settings.RemoteConfig.FetchTimeout,
                     ctx.Logs.Create("remote_config"));
                 if (sourceFactory is null) log.Warning("Firebase Remote Config adapter is not installed; using defaults");
+                // Khởi động offline hoặc fetch lỗi: quay lại app thì fetch nền nếu vẫn chưa có giá trị remote.
+                if (lifecycle != null)
+                    runtime.Subscriptions.Add(lifecycle.PauseChanged.Subscribe(paused => { if (!paused) runtime.RemoteConfig?.RefreshIfNotRemote(); }));
 
                 // 2. Tracking: Firebase Analytics + Adjust (nếu có Adjust Config). Event gửi trước đó được phát lại.
                 var analyticsInit = StartTracking(setup, ctx, registry, runtime, log);

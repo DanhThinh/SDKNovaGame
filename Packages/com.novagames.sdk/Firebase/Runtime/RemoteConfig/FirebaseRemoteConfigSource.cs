@@ -15,6 +15,7 @@ namespace NovaGames.Mobile.Firebase
     public sealed class FirebaseRemoteConfigSource : IRemoteConfigSource
     {
         const string Op = "remote_config.firebase";
+        static readonly TimeSpan MinStepTimeout = TimeSpan.FromSeconds(5);
 
         readonly FirebaseAppInitializer _app;
         readonly IFirebaseRemoteConfigApi _api;
@@ -98,7 +99,7 @@ namespace NovaGames.Mobile.Firebase
             }
 
             var activated = await VendorTask.ObserveAsync(activateTask, MapActivate, Op + ".activate",
-                _main, _scheduler, Remaining(deadline), ct, FirebaseProvider.Name);
+                _main, _scheduler, StepTimeout(deadline), ct, FirebaseProvider.Name);
             if (_disposed) return SdkError.Disposed(Op);
             if (!activated.TryGetValue(out bool changed)) return activated.Error!;
 
@@ -128,7 +129,8 @@ namespace NovaGames.Mobile.Firebase
             var task = _init;
             if (task is null || task.IsCompleted)
             {
-                task = RunInitAsync(_settings.InitTimeout);
+                // Init dùng chung chạy trong WorkTimeout; caller (RemoteConfigService) tự giới hạn việc chờ của mình.
+                task = RunInitAsync(_settings.WorkTimeout);
                 _init = task;
             }
             return task;
@@ -152,7 +154,7 @@ namespace NovaGames.Mobile.Firebase
             }
 
             var ensured = await VendorTask.ObserveVoidAsync(ensureTask, MapInit, Op + ".init",
-                _main, _scheduler, Remaining(deadline), CancellationToken.None, FirebaseProvider.Name);
+                _main, _scheduler, StepTimeout(deadline), CancellationToken.None, FirebaseProvider.Name);
             if (!ensured.IsSuccess)
             {
                 _log.Warning("EnsureInitializedAsync failed: " + ensured.Error);
@@ -196,6 +198,13 @@ namespace NovaGames.Mobile.Firebase
         }
 
         TimeSpan Remaining(DateTime deadline) => SdkTasks.Remaining(deadline, _clock);
+
+        // Bước cuối (activate, EnsureInitialized) luôn có tối thiểu MinStepTimeout dù bước trước đã tiêu gần hết deadline.
+        TimeSpan StepTimeout(DateTime deadline)
+        {
+            var remaining = Remaining(deadline);
+            return remaining > MinStepTimeout ? remaining : MinStepTimeout;
+        }
 
         static SdkResult<bool> MapInit(Task task) =>
             task.IsFaulted || task.IsCanceled ? VendorTask.FaultToError(task, Op + ".init", FirebaseProvider.Name) : SdkResult<bool>.Ok(true);

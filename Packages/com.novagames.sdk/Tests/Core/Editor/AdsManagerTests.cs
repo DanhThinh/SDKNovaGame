@@ -979,6 +979,63 @@ namespace NovaGames.Mobile.Tests
         }
 
         [Test]
+        public void Banner_FirstLoadFailsWhileHidden_NextShowRecreatesView()
+        {
+            CreateReady(loadAll: false);
+            var options = new BannerOptions(BannerPosition.Bottom);
+            _ads.Show(HomeBanner, options);
+            _ads.Hide(HomeBanner);
+            _adapter.FireLoadFailed(BannerUnit, AdLoadFailure.NoFill);
+            _h.Main.Drain();
+            _h.Scheduler.Advance(TimeSpan.FromMinutes(1));
+            _h.Main.Drain();
+            Assert.AreEqual(1, _adapter.AdViewRequests.Count, "no retry while hidden: a new view would appear on screen");
+
+            _ads.Show(HomeBanner, options);
+
+            Assert.AreEqual(2, _adapter.AdViewRequests.Count);
+            Assert.Less(_adapter.Calls.LastIndexOf("DestroyAdView " + BannerUnit.Key),
+                        _adapter.Calls.LastIndexOf("ShowAdView " + BannerUnit.Key), "empty view is destroyed before the new request");
+            Assert.AreEqual(AdViewState.Loading, _ads.GetState(HomeBanner));
+        }
+
+        [Test]
+        public void Banner_ReshownBeforeFirstLoad_FailureIsStillRetried()
+        {
+            CreateReady(loadAll: false);
+            var options = new BannerOptions(BannerPosition.Bottom);
+            _ads.Show(HomeBanner, options);
+            _ads.Hide(HomeBanner);
+            _ads.Show(HomeBanner, options);
+            Assert.AreEqual(AdViewState.Loading, _ads.GetState(HomeBanner), "not Visible until the first load succeeds");
+
+            _adapter.FireLoadFailed(BannerUnit, AdLoadFailure.Network);
+            _h.Main.Drain();
+            _h.Scheduler.Advance(TimeSpan.FromMinutes(1));
+            _h.Main.Drain();
+
+            Assert.AreEqual(3, _adapter.AdViewRequests.Count, "create, re-show, retry");
+        }
+
+        [Test]
+        public void Banner_FailureAfterSuccessfulLoad_IsLeftToVendorRefresh()
+        {
+            CreateReady(loadAll: false);
+            var options = new BannerOptions(BannerPosition.Bottom);
+            _ads.Show(HomeBanner, options);
+            _adapter.FireLoaded(BannerUnit);
+            _h.Main.Drain();
+            _ads.Hide(HomeBanner);
+            _adapter.FireLoadFailed(BannerUnit, AdLoadFailure.NoFill);
+            _h.Main.Drain();
+
+            _ads.Show(HomeBanner, options);
+
+            Assert.AreEqual(AdViewState.Visible, _ads.GetState(HomeBanner));
+            Assert.AreEqual(-1, _adapter.Calls.IndexOf("DestroyAdView " + BannerUnit.Key));
+        }
+
+        [Test]
         public void Banner_ShowWithoutOptions_UsesConfiguredPosition()
         {
             Create(Options() with { DefaultBanner = new BannerOptions(BannerPosition.Top) });

@@ -136,7 +136,7 @@ Chuột phải trong Project > **Create > NovaGames > …**
 | `NovaSdkSettings` | SDK Settings | Asset gốc, giữ tham chiếu tới mọi asset bên dưới |
 | `GameRemoteConfig` | Remote Config Definitions | Danh sách key Remote Config + default (mục 7) |
 | `MaxAdsConfig` | Ads Config (MAX) | Ad unit ID MAX, bid floor test |
-| `AdMobAdsConfig` | Ads Config (AdMob) | Ad unit ID AdMob, collapsible banner |
+| `AdMobAdsConfig` | Ads Config (AdMob) | Ad unit ID AdMob, collapsible banner, bid floor test |
 | `AdjustTrackingConfig` | Adjust Config | App token, event token |
 | `IapConfig` | IAP Config | Danh sách sản phẩm |
 | `NotificationConfig` | Notification Config | Nhắc chơi, channel Android |
@@ -241,7 +241,7 @@ NovaPrivacy.RequestTracking(status => { }); // chỉ cần khi đã tắt reques
 
 1. Tạo `MaxAdsConfig` và/hoặc `AdMobAdsConfig`, điền ad unit ID Android/iOS cho Interstitial, Rewarded, App Open, Banner, MREC. Để trống = không dùng format đó.
 2. Mục **Banner**: vị trí mặc định (Top/Bottom) cho `ShowBanner()` không truyền vị trí.
-3. **AdMob:** *Use Google Test Ids* dùng test ID của Google ở **mọi** bản build kể cả release — bỏ tick trước khi phát hành. `testDeviceIds` và `verboseLogging` chỉ áp dụng ở Development.
+3. **AdMob:** *Use Google Test Ids* dùng test ID của Google ở **mọi** bản build kể cả release — bỏ tick trước khi phát hành. `testDeviceIds` và `verboseLogging` chỉ áp dụng ở Development. Mục *Bid Floor Test* xem bên dưới.
 4. **MAX:** `testDeviceIds` (GAID/IDFA), `verboseLogging` chỉ áp dụng ở Development; mục *Bid Floor Test* xem bên dưới.
 5. Kéo asset vào `NovaSdkSettings` > Ads, chọn provider cho từng format trong *Ads Mediation*.
 
@@ -290,16 +290,18 @@ Asset Remote Config của game cài `IAdsConfigKeysSource` để map key (mẫu:
 | `ad_aoa_min_background` (s) | 5 | ≥ 5 |
 | `ad_collapsible_interval` (s) | 30 | ≥ 30 |
 | `ad_rewarded_grace` (ms) | 1000 | 300–3000 |
-| `ad_inter_floor_enabled`, `ad_rewarded_floor_enabled` (MAX) | false | đọc một lần lúc MAX init |
+| `ad_inter_floor_enabled`, `ad_rewarded_floor_enabled` (MAX, AdMob) | false | đọc một lần lúc adapter init |
 
 - Giá trị sai kiểu/âm → dùng default, sau đó mới kẹp theo giới hạn.
 - Config activate giữa session được áp ngay; riêng 2 cờ floor có hiệu lực từ lần mở app sau.
 - Capping lưu bền (key `novagames.mobile.v1.ads.capping`), tính cả qua các lần mở app.
 
-### Bid floor test (chỉ MAX, Interstitial/Rewarded)
+### Bid floor test (MAX và AdMob, Interstitial/Rewarded)
 
 - **Trên MAX dashboard:** mỗi format có 3 unit — HIGH (floor theo geo, chỉ bidder), MEDIUM (½ HIGH, chỉ bidder), MAIN (không floor, waterfall đầy đủ). Cả 3 dùng chung network placement ID; không thêm unit nào khác cho format đó.
 - **Trong `MaxAdsConfig`:** `interstitial`/`rewarded` là unit MAIN; điền HIGH/MEDIUM vào mục *Bid Floor Test*; `floorTierLoadTimeoutSeconds` mặc định 15.
+- **Trên AdMob:** mỗi format có 3 ad unit — HIGH (eCPM floor cao), MEDIUM (½ HIGH), MAIN (không floor). Trong `AdMobAdsConfig` điền giống MAX: `interstitial`/`rewarded` là MAIN, HIGH/MEDIUM ở mục *Bid Floor Test*. Đang bật *Use Google Test Ids* thì không cascade. Ad AdMob dùng một lần: tier nào fill trễ được giữ lại và show ở lần sau; hết TTL thì bỏ ad của mọi tier.
+- Hai cờ dùng chung cho MAX và AdMob: format chạy mediation nào thì cờ áp cho mediation đó.
 - **Bật theo nhóm** bằng Firebase A/B trên `ad_inter_floor_enabled` / `ad_rewarded_floor_enabled`. Session đầu chưa có cache thường rơi vào nhóm control.
 - Khi bật, mỗi lượt load đi HIGH → MEDIUM → MAIN; show dùng tier giá cao nhất đang có ad; revenue mang `AdUnitId` của tier thật sự show để tách doanh thu theo tier.
 - Cấu hình sai (unit floor trùng ID, unit main trống) → cascade đó bị bỏ qua và log warning.
@@ -348,7 +350,9 @@ var source = NovaRemoteConfig.Source;                        // Default / Cache 
 
 - Luôn có giá trị, theo thứ tự remote → cache lần trước → default trong asset.
 - Giá trị remote sai kiểu hoặc ngoài khoảng bị loại (dùng giá trị hợp lệ gần nhất, không có thì default).
-- Init timeout 5 s, fetch timeout 3 s; minimum fetch interval: Production 12 giờ, Development 0.
+- Lúc khởi động SDK chờ init Firebase tối đa 5 s + fetch tối đa *Fetch Timeout Seconds* (mặc định 3 s) rồi Ready. Fetch chậm hơn vẫn chạy nền (tối đa 60 s) và được áp khi về: `NovaRemoteConfig.Updated` bắn, nên đọc lại giá trị trong handler. `FetchAsync()` cũng vậy: trả `false` khi hết giờ chờ nhưng giá trị về sau vẫn được áp.
+- Lỗi tạm thời (mất mạng, timeout, Play services đang cập nhật) tự thử lại sau 10 s / 30 s / 2 phút; quay lại app mà vẫn chưa có giá trị remote thì fetch lại. `NovaRemoteConfig.LastError` giữ lý do lỗi gần nhất (null khi đã có giá trị remote).
+- Minimum fetch interval: Development 0; release theo *Release Fetch Interval Minutes* trong `NovaSdkSettings` (mặc định 720 = 12 giờ, mặc định của Firebase). Trong khoảng này Firebase trả bộ giá trị đã fetch trước đó, nên đổi giá trị trên console có thể chưa tới máy đang chạy bản release.
 
 ## 8. Analytics — NovaAnalytics
 
@@ -523,7 +527,7 @@ Khi build Android/iOS **release** (không tick Development Build), các lỗi sa
 ## 16. Scene Demo
 
 - Import sample Demo (mục 2), mở `Scenes/Demo.unity` rồi Play. Trong project SDK, sample nằm ở `Assets/NovaSdkSamples/Demo`.
-- GameObject `NovaSdk` (component `NovaSdkBootstrap`, giống prefab NovaSdk) khởi động SDK với `Data/NovaSdkSettings.asset` của sample (consent *Assume granted*, toàn bộ ads chạy AdMob); popup đánh giá đặt sẵn trong scene.
+- Prefab `NovaSdk` (giống hệt cách game tích hợp, mục 4) khởi động SDK với `Data/NovaSdkSettings.asset` của sample (consent *Google UMP*, toàn bộ ads chạy AdMob bằng test ID của Google); module SDK là GameObject con của `NovaSdk`; popup mất mạng và popup đánh giá do prefab tạo.
 - `SdkDemoPanel` có nút cho privacy, Remote Config, analytics, 5 loại ads, level ±1, notifications, No Internet, rating, Crashlytics, IAP. Status cập nhật mỗi 0,5 s, log giữ 6 dòng gần nhất.
 - Thêm nút: viết hàm public trong `SdkDemoPanel`, nhân bản một nút có sẵn trong scene và gán `OnClick` tới hàm đó.
 

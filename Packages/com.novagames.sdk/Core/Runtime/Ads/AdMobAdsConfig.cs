@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -10,7 +11,9 @@ namespace NovaGames.Mobile.Ads
     public sealed class AdMobAdsConfig : AdsConfig
     {
         [Header("Ad Unit ID (để trống = không dùng format đó)")]
+        [Tooltip("Unit main của Interstitial. Khi chạy bid floor test, đây là unit cuối cùng (không floor).")]
         [SerializeField] PlatformAdUnitId interstitial = new PlatformAdUnitId();
+        [Tooltip("Unit main của Rewarded. Khi chạy bid floor test, đây là unit cuối cùng (không floor).")]
         [SerializeField] PlatformAdUnitId rewarded = new PlatformAdUnitId();
         [SerializeField] PlatformAdUnitId appOpen = new PlatformAdUnitId();
         [SerializeField] PlatformAdUnitId banner = new PlatformAdUnitId();
@@ -19,6 +22,18 @@ namespace NovaGames.Mobile.Ads
         [Header("Banner")]
         [Tooltip("Vị trí banner khi game gọi Banners.Show(placement). Game vẫn có thể truyền BannerOptions để đổi riêng từng lần.")]
         [SerializeField] BannerPosition bannerPosition = BannerPosition.Bottom;
+
+        [Header("Bid Floor Test (để trống = không test)")]
+        [Tooltip("Unit floor cao (eCPM floor cao nhất).")]
+        [SerializeField] PlatformAdUnitId interstitialHigh = new PlatformAdUnitId();
+        [Tooltip("Unit floor = ½ HIGH.")]
+        [SerializeField] PlatformAdUnitId interstitialMedium = new PlatformAdUnitId();
+        [Tooltip("Unit floor cao (eCPM floor cao nhất).")]
+        [SerializeField] PlatformAdUnitId rewardedHigh = new PlatformAdUnitId();
+        [Tooltip("Unit floor = ½ HIGH.")]
+        [SerializeField] PlatformAdUnitId rewardedMedium = new PlatformAdUnitId();
+        [Tooltip("Timeout load của từng unit floor (giây). Unit main dùng LoadTimeout của AdsManager.")]
+        [SerializeField, Min(1)] int floorTierLoadTimeoutSeconds = 15;
 
         [Header("Test ID")]
         [Tooltip("Dùng test ad unit ID chính thức của AdMob (ca-app-pub-3940256099942544/...) thay cho các ID ở trên, "
@@ -54,10 +69,52 @@ namespace NovaGames.Mobile.Ads
 
         protected override bool HasBuiltInIds(bool isDevelopment) => useGoogleTestIds;
 
+        // Cascade chỉ chạy khi Remote Config ad_<format>_floor_enabled = true lúc init; tắt thì AdMob load unit main như thường.
+        // Đang dùng test ID của Google thì không cascade (unit floor là ID thật).
+        protected override IAdsProviderSettings? ProviderSettings(bool isDevelopment, bool isIos)
+        {
+            var cascades = new List<AdMobFloorCascadeSettings>();
+            if (!useGoogleTestIds)
+            {
+                foreach (var pair in FloorIds(isIos))
+                {
+                    var main = ConfiguredId(pair.Key, isIos);
+                    var floors = Array.FindAll(pair.Value, id => !string.IsNullOrEmpty(id));
+                    if (!string.IsNullOrEmpty(main) && floors.Length > 0) cascades.Add(new AdMobFloorCascadeSettings(main, floors));
+                }
+            }
+            return new AdMobAdsSettings
+            {
+                FloorCascades = cascades,
+                FloorTierLoadTimeout = TimeSpan.FromSeconds(Math.Max(1, floorTierLoadTimeoutSeconds)),
+            };
+        }
+
+        Dictionary<AdFormat, string[]> FloorIds(bool isIos) => new Dictionary<AdFormat, string[]>
+        {
+            [AdFormat.Interstitial] = new[] { interstitialHigh.For(isIos), interstitialMedium.For(isIos) },
+            [AdFormat.Rewarded] = new[] { rewardedHigh.For(isIos), rewardedMedium.For(isIos) },
+        };
+
         protected override void ValidateExtra(bool isDevelopment, bool isIos, List<string> issues)
         {
             if (useGoogleTestIds && !isDevelopment)
                 issues.Add("Use Google Test Ids is on in a release build: ads use Google test IDs and earn no revenue");
+
+            foreach (var pair in FloorIds(isIos))
+            {
+                var main = ConfiguredId(pair.Key, isIos);
+                var seen = new HashSet<string> { main };
+                for (int i = 0; i < pair.Value.Length; i++)
+                {
+                    var id = pair.Value[i];
+                    if (string.IsNullOrEmpty(id)) continue;
+                    var label = pair.Key + (i == 0 ? " high" : " medium");
+                    ValidateId(label, id, isDevelopment, issues);
+                    if (string.IsNullOrEmpty(main)) issues.Add(label + ": floor unit set but " + pair.Key + " (main) has no ad unit ID");
+                    else if (!seen.Add(id)) issues.Add(label + ": '" + id + "' is reused; each cascade tier needs its own ad unit");
+                }
+            }
         }
 
         // Production còn test ID của Google là lỗi.

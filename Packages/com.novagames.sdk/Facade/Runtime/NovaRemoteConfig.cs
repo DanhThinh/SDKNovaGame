@@ -80,7 +80,12 @@ namespace NovaGames.Mobile
             s_fetchTimeout = fetchTimeout;
             s_log = log;
             s_subscription?.Dispose();
-            s_subscription = service.Current.Subscribe(_ => Updated?.Invoke(), emitCurrent: false);
+            // Fetch về muộn (sau khi Ready) cũng xóa lỗi cũ.
+            s_subscription = service.Current.Subscribe(snapshot =>
+            {
+                if (snapshot.Source == ConfigSource.Remote) LastError = null;
+                Updated?.Invoke();
+            }, emitCurrent: false);
         }
 
         // Đọc theo tên key cho component của SDK (NovaSdkBootstrap) không biết enum của game. false = chưa init hoặc

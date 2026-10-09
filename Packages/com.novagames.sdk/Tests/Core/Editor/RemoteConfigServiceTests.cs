@@ -167,6 +167,124 @@ namespace NovaGames.Mobile.Tests
             Assert.Greater(_h.Log.Count(SdkLogLevel.Error), 0);
         }
 
+        // ---------------- Fetch nền, retry, refresh ----------------
+
+        RemoteConfigService CreateTimedService() =>
+            new RemoteConfigService(_source, _h.Store, _h.Clock, _h.Log, RemoteConfigOptions.Default,
+                new ConfigKey[] { Capping, InterEnabled }, _h.Main, _h.Scheduler);
+
+        static SdkResult<RemoteConfigFetchResult> Values(string capping) => SdkResult<RemoteConfigFetchResult>.Ok(
+            new RemoteConfigFetchResult(new Dictionary<string, string> { ["inter_capping"] = capping }, true, null));
+
+        [Test]
+        public void SlowFetch_CallerTimesOut_LateResultIsStillActivated()
+        {
+            var pending = new TaskCompletionSource<SdkResult<RemoteConfigFetchResult>>();
+            _source.Pending = pending;
+            var service = CreateTimedService();
+            int changes = 0;
+            service.Current.Subscribe(_ => changes++, emitCurrent: false);
+
+            var init = service.InitializeAsync(CancellationToken.None);
+            _h.Scheduler.Advance(RemoteConfigOptions.Default.InitTimeout + RemoteConfigOptions.Default.FetchTimeout);
+            var result = _h.Run(init);
+
+            Assert.AreEqual(SdkErrorCategory.Timeout, result.Error!.Category, "Ready does not wait past the startup budget");
+            Assert.AreEqual(ConfigSource.Default, service.Current.Value.Source);
+
+            pending.SetResult(Values("60"));
+            _h.Main.Drain();
+
+            Assert.AreEqual(ConfigSource.Remote, service.Current.Value.Source, "late fetch is activated, not dropped");
+            Assert.AreEqual(60, service.Get(Capping));
+            Assert.AreEqual(1, changes);
+            Assert.IsTrue(_h.Store.Values.ContainsKey(StorageKeys.RemoteConfigLastGood));
+        }
+
+        [Test]
+        public void SlowFetch_SourceGetsWorkBudgetNotCallerTimeout()
+        {
+            _source.Pending = new TaskCompletionSource<SdkResult<RemoteConfigFetchResult>>();
+            var service = CreateTimedService();
+
+            service.FetchAndActivateAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+
+            Assert.AreEqual(RemoteConfigOptions.Default.WorkTimeout, _source.LastTimeout);
+        }
+
+        [Test]
+        public void RetryableFailure_RetriesInBackgroundAndActivates()
+        {
+            _source.EnqueueError(new SdkError("fetch", SdkErrorCategory.Network, "offline", true));
+            _source.Enqueue(("inter_capping", "45"));
+            var service = CreateTimedService();
+
+            Assert.IsFalse(_h.Run(service.InitializeAsync(CancellationToken.None)).IsSuccess);
+            Assert.AreEqual(1, _source.FetchCount);
+
+            _h.Scheduler.Advance(RemoteConfigOptions.Default.RetryDelays[0]);
+            _h.Main.Drain();
+
+            Assert.AreEqual(2, _source.FetchCount);
+            Assert.AreEqual(ConfigSource.Remote, service.Current.Value.Source);
+            Assert.AreEqual(45, service.Get(Capping));
+        }
+
+        [Test]
+        public void SourceInitFailure_IsRetriedToo()
+        {
+            _source.InitResults.Enqueue(SdkError.Timeout("init"));
+            _source.Enqueue(("inter_capping", "45"));
+            var service = CreateTimedService();
+
+            Assert.IsFalse(_h.Run(service.InitializeAsync(CancellationToken.None)).IsSuccess);
+            Assert.AreEqual(0, _source.FetchCount, "no fetch while the source is not initialized");
+
+            _h.Scheduler.Advance(RemoteConfigOptions.Default.RetryDelays[0]);
+            _h.Main.Drain();
+
+            Assert.AreEqual(45, service.Get(Capping));
+        }
+
+        [Test]
+        public void NonRetryableFailure_IsNotRetried_AndRetriesAreBounded()
+        {
+            _source.EnqueueError(new SdkError("throttled", SdkErrorCategory.Unavailable, "throttled", false));
+            var service = CreateTimedService();
+            _h.Run(service.InitializeAsync(CancellationToken.None));
+            Assert.AreEqual(0, _h.Scheduler.PendingCount);
+
+            var retrying = CreateTimedService();
+            foreach (var _ in RemoteConfigOptions.Default.RetryDelays) _source.EnqueueError(SdkError.Timeout("fetch"));
+            _source.EnqueueError(SdkError.Timeout("fetch"));
+            _h.Run(retrying.FetchAndActivateAsync(TimeSpan.FromSeconds(3), CancellationToken.None));
+            foreach (var delay in RemoteConfigOptions.Default.RetryDelays)
+            {
+                _h.Scheduler.Advance(delay);
+                _h.Main.Drain();
+            }
+
+            Assert.AreEqual(2 + RemoteConfigOptions.Default.RetryDelays.Count, _source.FetchCount);
+            Assert.AreEqual(0, _h.Scheduler.PendingCount, "gives up after the last retry delay");
+        }
+
+        [Test]
+        public void RefreshIfNotRemote_FetchesOnlyWhenNotOnRemoteValues()
+        {
+            _source.EnqueueError(new SdkError("throttled", SdkErrorCategory.Unavailable, "throttled", false));
+            _source.Enqueue(("inter_capping", "45"));
+            var service = CreateTimedService();
+            _h.Run(service.InitializeAsync(CancellationToken.None));
+
+            service.RefreshIfNotRemote();
+            _h.Main.Drain();
+            Assert.AreEqual(45, service.Get(Capping));
+            Assert.AreEqual(2, _source.FetchCount);
+
+            service.RefreshIfNotRemote();
+            Assert.AreEqual(2, _source.FetchCount, "already on remote values");
+        }
+
         sealed class FakeSource : IRemoteConfigSource
         {
             readonly Queue<SdkResult<RemoteConfigFetchResult>> _results = new Queue<SdkResult<RemoteConfigFetchResult>>();
@@ -184,11 +302,16 @@ namespace NovaGames.Mobile.Tests
 
             public void EnqueueError(SdkError error) => _results.Enqueue(error);
 
-            public Task<SdkResult> InitializeAsync(CancellationToken ct) => Task.FromResult(SdkResult.Ok);
+            public Queue<SdkResult> InitResults { get; } = new Queue<SdkResult>();
+            public TimeSpan LastTimeout { get; private set; }
+
+            public Task<SdkResult> InitializeAsync(CancellationToken ct) =>
+                Task.FromResult(InitResults.Count > 0 ? InitResults.Dequeue() : SdkResult.Ok);
 
             public Task<SdkResult<RemoteConfigFetchResult>> FetchAndActivateAsync(TimeSpan timeout, CancellationToken ct)
             {
                 FetchCount++;
+                LastTimeout = timeout;
                 return Pending?.Task ?? Task.FromResult(_results.Dequeue());
             }
 

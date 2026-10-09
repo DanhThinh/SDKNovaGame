@@ -34,6 +34,12 @@ namespace NovaGames.Mobile
         [Header("Remote Config")]
         [Tooltip("Asset Remote Config Definitions của game (enum key + kiểu + default). Để trống = NovaRemoteConfig không dùng được.")]
         [SerializeField] RemoteConfigDefinitions? remoteConfig;
+        [Tooltip("Thời gian tối thiểu giữa hai lần fetch thật ở bản release (phút). 720 = 12 giờ (mặc định của Firebase). " +
+                 "Giảm để giá trị mới tới máy nhanh hơn; quá thấp có thể bị Firebase throttle. Development build luôn là 0.")]
+        [SerializeField, Min(0)] int releaseFetchIntervalMinutes = 720;
+        [Tooltip("Lúc khởi động, SDK chờ fetch tối đa bấy nhiêu giây (sau khi init Firebase) rồi mới Ready. " +
+                 "Fetch về muộn hơn vẫn được áp dụng (NovaRemoteConfig.Updated).")]
+        [SerializeField, Range(1, 10)] float fetchTimeoutSeconds = 3;
 
         [Header("Ads")]
         [Tooltip("Create > NovaGames > Ads Config (MAX). Để trống nếu không format nào dùng MAX.")]
@@ -113,6 +119,11 @@ namespace NovaGames.Mobile
                     ? new CrashReportingOptions { UncaughtExceptionsAsFatal = uncaughtExceptionsAsFatal }
                     : null,
                 RemoteConfig = remoteConfig,
+                RemoteConfigOptions = (isDevelopment ? RemoteConfigOptions.Development : RemoteConfigOptions.Default) with
+                {
+                    FetchTimeout = TimeSpan.FromSeconds(Mathf.Clamp(fetchTimeoutSeconds, 1, 10)),
+                    MinimumFetchInterval = isDevelopment ? TimeSpan.Zero : TimeSpan.FromMinutes(Math.Max(0, releaseFetchIntervalMinutes)),
+                },
                 PauseGameDuringAds = pauseGameDuringFullScreenAds,
                 ConsentSource = consentSource,
                 AttAllowed = !underAgeOfConsent,
@@ -188,6 +199,7 @@ namespace NovaGames.Mobile
         public bool IsDevelopment;
         public bool IsIos;
         public RemoteConfigDefinitions? RemoteConfig;
+        public RemoteConfigOptions? RemoteConfigOptions;
         public IReadOnlyList<ConfigKey> RemoteKeys = Array.Empty<ConfigKey>();
         public AdsOptions Ads = AdsOptions.Disabled;
         public AdsConfigKeys AdsKeys = AdsConfigKeys.Default;

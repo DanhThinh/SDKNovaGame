@@ -115,7 +115,17 @@ namespace NovaGames.Mobile.RemoteConfig
         TimeSpan FetchTimeout,
         TimeSpan MinimumFetchInterval)
     {
-        /// <summary>Init Firebase tối đa 5 s, fetch tối đa 3 s; minimum fetch interval 12 giờ = default của Firebase.</summary>
+        /// <summary>
+        /// Ngân sách của một lượt init + fetch + activate chạy nền. Caller (lúc khởi động: InitTimeout + FetchTimeout; game
+        /// gọi FetchAsync: FetchTimeout) chỉ chờ phần đầu; kết quả về muộn trong ngân sách này vẫn được activate.
+        /// </summary>
+        public TimeSpan WorkTimeout { get; init; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>Chờ trước mỗi lần tự thử lại khi init/fetch lỗi có thể thử lại (timeout, mạng, Play services đang cập nhật).</summary>
+        public IReadOnlyList<TimeSpan> RetryDelays { get; init; } =
+            new[] { TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2) };
+
+        /// <summary>Caller chờ init tối đa 5 s, fetch tối đa 3 s; minimum fetch interval 12 giờ = default của Firebase.</summary>
         public static RemoteConfigOptions Default { get; } =
             new RemoteConfigOptions(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(3), TimeSpan.FromHours(12));
 

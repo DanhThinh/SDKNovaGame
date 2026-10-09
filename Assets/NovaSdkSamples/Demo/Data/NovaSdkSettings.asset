@@ -29,7 +29,7 @@ MonoBehaviour:
   notifications: {fileID: 11400000, guid: 27dee8f8ce85b3c44bf7daed68d8c291, type: 2}
   consentSource: 0
   underAgeOfConsent: 0
-  debugGeography: 2
+  debugGeography: 0
   consentTestDeviceHashedIds: []
   requestAttOnStartup: 1
   attUsageDescription: Your data will be used to deliver personalized ads to you.

@@ -144,7 +144,8 @@ Packages/com.novagames.sdk/
 | `AdsAdapterSpi.cs` | SPI giữa `AdsManager` và adapter: `IAdsAdapter`, `IAdsAdapterListener`, `AdUnit`, `AdLoadError`, `AdPaidValue`, `AdViewRequest`, `AdsAdapterInitOptions`, `AdProviderIds`. |
 | `AdsCapping.cs` | (internal) Lưu bền trạng thái capping interstitial (khoảng cách, số lần/ngày); đếm số lần/phiên trong bộ nhớ. |
 | `AdsConfig.cs` | `AdsConfig` (ScriptableObject nền của asset ad unit), `PlatformAdUnitId`, `AdsConfigOptions`, `GoogleAdUnitIds` (test ID của Google, nhận diện ID AdMob). |
-| `AdMobAdsConfig.cs` | Asset *Ads Config (AdMob)*: ID 5 format, vị trí banner, Use Google Test Ids, test device; validate ID AdMob. |
+| `AdMobAdsConfig.cs` | Asset *Ads Config (AdMob)*: ID 5 format, vị trí banner, Use Google Test Ids, test device; validate ID AdMob. Mục Bid Floor Test sinh `AdMobAdsSettings`. |
+| `AdMobAdsSettings.cs` | `AdMobAdsSettings` / `AdMobFloorCascadeSettings`: dữ liệu bid floor của AdMob, Core chuyển nguyên vẹn tới adapter. |
 | `AdsMediation.cs` | `AdsMediationSelection` (provider cho từng format) và `AdsMediation.ToOptions/Validate` ghép asset MAX + AdMob thành `AdsOptions`. |
 | `AdsOptions.cs` | `AdsProvider`, `AdPlacementBinding`, `AdsProviderOptions`, `AdsOptions` (unit, binding, timeout, TTL, `Validate`). |
 | `AdsPolicy.cs` | `AdsPolicy` (policy đã kẹp giới hạn an toàn), `AdsConfigKeyNames` (tên key `ad_*`), `AdsConfigKeys`, `IAdsConfigKeysSource`. |
@@ -195,7 +196,7 @@ Packages/com.novagames.sdk/
 | `RemoteConfig/RemoteConfigCache.cs` | (internal) Cache giá trị hợp lệ gần nhất (JSON + schemaVersion). |
 | `RemoteConfig/RemoteConfigContracts.cs` | `ConfigSource`, `RemoteConfigSnapshot`, `IRemoteConfigService`, SPI `IRemoteConfigSource`, `RemoteConfigOptions`. |
 | `RemoteConfig/RemoteConfigDefinitions.cs` | `RemoteDefaultAttribute`, `ConfigEntry<TKey>`, ScriptableObject `RemoteConfigDefinitions<TKey>` (enum làm key), extension `GetInt/...`. |
-| `RemoteConfig/RemoteConfigService.cs` | Default → cache → fetch (single-flight) → validate → activate nguyên khối. |
+| `RemoteConfig/RemoteConfigService.cs` | Default → cache → fetch (single-flight) → validate → activate nguyên khối. Mỗi lượt init + fetch chạy nền trong `WorkTimeout` (60 s), caller chỉ chờ timeout của mình; kết quả muộn vẫn activate; lỗi retryable tự thử lại theo `RetryDelays`; `RefreshIfNotRemote` (NovaSdk gọi khi app quay lại). |
 | `Tracking/AttributionContracts.cs` | `AttributionData`, `DeepLink`, `IAttributionListener`, `IAttributionSink`. |
 | `Tracking/TrackingContracts.cs` | `TrackingEvent`, `TrackingParam`, `AdRevenueEvent`, `PurchaseRevenueEvent`, `SinkCapabilities`, SPI `ITrackingSink`, `IRevenuePipeline`, `TrackingSinkIds`, `AnalyticsOptions`. |
 | `Tracking/TrackingSinkConfig.cs` | ScriptableObject nền cho asset cấu hình sink (vd. Adjust). |
@@ -241,6 +242,9 @@ Packages/com.novagames.sdk/
 | `Ads.Max/Runtime/MaxFloorSettings.cs` | `MaxFloorCascadeSettings`, `MaxAdsSettings`, `MaxFloorKeys` (cờ Remote Config), `MaxFloorPlan` (tính selective init, B2B, auto-retry). |
 | `Ads.Max/Runtime/MaxFloorCascade.cs` | `IMaxFullScreenApi` và state machine HIGH → MEDIUM → MAIN cho một unit main. |
 | `Ads.AdMob/Runtime/AdMobAdsAdapter.cs` | Adapter Google Mobile Ads: RequestConfiguration, full-screen dùng một lần, banner/MREC, collapsible banner, revenue micros → USD, Ad Inspector; `AdMobModule` (file riêng) đăng ký id `admob`. |
+| `Ads.AdMob/Runtime/AssemblyInfo.cs` | `InternalsVisibleTo` cho test Ads.AdMob. |
+| `Ads.AdMob/Runtime/AdMobFloorCascade.cs` | `IAdMobFullScreenApi` và state machine HIGH → MEDIUM → MAIN cho một unit main (bản AdMob của cascade MAX). |
+| `Ads.AdMob/Runtime/AdMobFloorPlan.cs` | Cờ `ad_inter_floor_enabled` / `ad_rewarded_floor_enabled` và dựng tier cho cascade đang bật lúc init. |
 
 ### Firebase
 
@@ -256,7 +260,7 @@ Packages/com.novagames.sdk/
 | `Runtime/Crashlytics/FirebaseCrashlyticsReporter.cs` | `ICrashReporter` cho Crashlytics: breadcrumb, non-fatal, custom key, user id, bật/tắt thu thập. |
 | `Runtime/RemoteConfig/AssemblyInfo.cs` | `InternalsVisibleTo` cho test. |
 | `Runtime/RemoteConfig/FirebaseRemoteConfigApi.cs` | Wrapper `FirebaseRemoteConfig.DefaultInstance`, chỉ trả giá trị có nguồn remote. |
-| `Runtime/RemoteConfig/FirebaseRemoteConfigSource.cs` | `IRemoteConfigSource`: init → fetch → activate chung một deadline, map lỗi throttled/network. |
+| `Runtime/RemoteConfig/FirebaseRemoteConfigSource.cs` | `IRemoteConfigSource`: init → fetch → activate chung một deadline (activate/EnsureInitialized tối thiểu 5 s), init dùng chung chạy trong `WorkTimeout`, map lỗi throttled/network. |
 
 ### Attribution (Adjust)
 
@@ -298,11 +302,11 @@ Asset kèm module: `NoInternet/Prefabs/NoInternetPopup.prefab` (Canvas sortingOr
 |---|---|
 | `Scripts/RemoteKey.cs` | Enum key Remote Config mẫu (`[RemoteDefault]`) và `RemoteKeys.Ads` nối key Ads. |
 | `Scripts/GameRemoteConfig.cs` | Asset Remote Config Definitions theo `RemoteKey`, cài `IAdsConfigKeysSource`. |
-| `Scripts/SampleAds.cs` | Hằng số tên placement mẫu (`Placements`). |
+| `Scripts/Placements.cs` | Hằng số tên placement mẫu (`Placements`). |
 | `Scripts/SdkDemoPanel.cs` | Panel demo: status, log, mỗi nút gọi một API `Nova*`. |
 | `Editor/GameRemoteConfigContextMenu.cs` | Menu *Add Missing Enum Entries*: thêm dòng còn thiếu từ enum vào asset. |
 
-Asset mẫu: `Scenes/Demo.unity` (khởi động bằng component `NovaSdkBootstrap` trên GameObject `NovaSdk`); `Data/NovaSdkSettings.asset` (consent Assume granted, ads chạy AdMob), `GameRemoteConfig.asset`, `MaxAdsConfig.asset`, `AdMobAdsConfig.asset`, `AdjustTrackingConfig.asset`, `IapConfig.asset` (remove_ads, gem_pack_1), `NotificationConfig.asset`.
+Asset mẫu: `Scenes/Demo.unity` (khởi động bằng prefab `NovaSdk` + module con); `Data/NovaSdkSettings.asset` (consent Google UMP, ads chạy AdMob bằng test ID), `GameRemoteConfig.asset`, `MaxAdsConfig.asset`, `AdMobAdsConfig.asset`, `AdjustTrackingConfig.asset`, `IapConfig.asset` (remove_ads, gem_pack_1), `NotificationConfig.asset`.
 
 ### Tests
 
@@ -319,6 +323,7 @@ Asset mẫu: `Scenes/Demo.unity` (khởi động bằng component `NovaSdkBootst
 | `Core/Editor/OfflineDetectorTests.cs`, `RatingPolicyTests.cs`, `VendorOperationTests.cs` | Chống nháy mạng, điều kiện rating, exactly-once/timeout/cancel. |
 | `Facade/Editor/NovaAdsTests.cs`, `NovaSdkTests.cs` | Facade Ads; tích hợp NovaSdk với fake (consent, IAP, notifications, Crashlytics, ATT, deep link, Shutdown). |
 | `Ads.Max/Editor/MaxFloorCascadeTests.cs` | Cascade bid floor (tuần tự, timeout, fill trễ, show) và `MaxFloorPlan`. |
+| `Ads.AdMob/Editor/AdMobFloorCascadeTests.cs` | Cascade bid floor của AdMob và `AdMobFloorPlan`. |
 | `Firebase/Editor/*` | Luật tên Analytics, sink Analytics, Remote Config source, fake API Firebase. |
 | `Attribution.Adjust/Editor/*` | `AdjustSink` (consent, DMA, COPPA, token, revenue, deep link) và config rules. |
 | `Privacy.Ump/Editor/*` | Mapper consent UMP và luồng gather/privacy options. |

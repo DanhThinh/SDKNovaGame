@@ -9,6 +9,8 @@ namespace NovaGames.Mobile.RemoteConfig
 {
     /// <summary>
     /// Pipeline: Bundled defaults -&gt; Last-known-good cache -&gt; Fetched -&gt; Validation -&gt; Atomic activation.
+    /// Mỗi lượt init + fetch chạy nền trong WorkTimeout; caller chỉ chờ tới timeout của mình, kết quả về muộn vẫn được
+    /// activate (Current đổi, Updated bắn). Có main + scheduler thì lỗi có thể thử lại được tự retry theo RetryDelays.
     /// Gọi trên main thread.
     /// </summary>
     public sealed class RemoteConfigService : IRemoteConfigService, IDisposable
@@ -20,23 +22,31 @@ namespace NovaGames.Mobile.RemoteConfig
         readonly IClock _clock;
         readonly ISdkLogger _log;
         readonly RemoteConfigOptions _settings;
+        readonly IMainThreadDispatcher? _main;
+        readonly IScheduler? _scheduler;
         readonly Dictionary<string, ConfigKey> _keys = new Dictionary<string, ConfigKey>(StringComparer.Ordinal);
         readonly SdkProperty<RemoteConfigSnapshot> _current;
 
         Task<SdkResult<RemoteConfigSnapshot>>? _inflight;
+        IDisposable? _retryTimer;
+        int _retryAttempt;
         long _version;
         bool _cacheLoaded;
         bool _disposed;
 
+        /// <param name="main">Cùng với scheduler: caller chờ có timeout và tự retry. null = chờ tới khi lượt fetch xong, không retry.</param>
         public RemoteConfigService(
             IRemoteConfigSource? source, IKeyValueStore store, IClock clock, ISdkLogger log,
-            RemoteConfigOptions settings, IEnumerable<ConfigKey>? registeredKeys = null)
+            RemoteConfigOptions settings, IEnumerable<ConfigKey>? registeredKeys = null,
+            IMainThreadDispatcher? main = null, IScheduler? scheduler = null)
         {
             _source = source;
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _clock = clock ?? throw new ArgumentNullException(nameof(clock));
             _log = log ?? throw new ArgumentNullException(nameof(log));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _main = main;
+            _scheduler = scheduler;
             _current = new SdkProperty<RemoteConfigSnapshot>(RemoteConfigSnapshot.Empty, log, ReferenceEqualityComparer.Instance);
 
             if (registeredKeys != null)
@@ -65,57 +75,79 @@ namespace NovaGames.Mobile.RemoteConfig
             _log.Info("Loaded " + snapshot);
         }
 
-        /// <summary>Load cache, init source, fetch với timeout cấu hình. Thất bại =&gt; vẫn chạy bằng cache/default.</summary>
-        public async Task<SdkResult<RemoteConfigSnapshot>> InitializeAsync(CancellationToken ct)
+        /// <summary>
+        /// Load cache, init source, fetch. Chờ tối đa InitTimeout + FetchTimeout; hết giờ thì vẫn chạy bằng cache/default,
+        /// lượt fetch tiếp tục chạy nền và activate khi xong.
+        /// </summary>
+        public Task<SdkResult<RemoteConfigSnapshot>> InitializeAsync(CancellationToken ct) =>
+            Start(_settings.InitTimeout + _settings.FetchTimeout, ct);
+
+        /// <summary>Fetch lại; chờ tối đa `timeout`, lượt fetch tiếp tục chạy nền sau đó.</summary>
+        public Task<SdkResult<RemoteConfigSnapshot>> FetchAndActivateAsync(TimeSpan timeout, CancellationToken ct) => Start(timeout, ct);
+
+        /// <summary>Chưa có giá trị remote (vd. lần khởi động offline) thì fetch nền, không ai chờ. NovaSdk gọi khi app quay lại.</summary>
+        public void RefreshIfNotRemote()
         {
-            if (_disposed) return SdkError.Disposed(Op);
-            LoadCache();
-            if (_source is null)
-                return new SdkError(Op + ".no_source", SdkErrorCategory.Configuration, "No remote config source registered", false);
-
-            SdkResult init;
-            try
-            {
-                init = await _source.InitializeAsync(ct);
-            }
-            catch (Exception e)
-            {
-                init = SdkError.FromException(Op + ".init", e, _source.Id);
-            }
-            if (!init.IsSuccess)
-            {
-                _log.Warning("Remote config source init failed, running on " + _current.Value.Source + ": " + init.Error);
-                return init.Error!;
-            }
-
-            return await FetchAndActivateAsync(_settings.FetchTimeout, ct);
+            if (_disposed || _source is null || _current.Value.Source == ConfigSource.Remote) return;
+            _retryAttempt = 0;
+            StartRound();
         }
 
-        public Task<SdkResult<RemoteConfigSnapshot>> FetchAndActivateAsync(TimeSpan timeout, CancellationToken ct)
+        Task<SdkResult<RemoteConfigSnapshot>> Start(TimeSpan timeout, CancellationToken ct)
         {
             if (_disposed) return Task.FromResult<SdkResult<RemoteConfigSnapshot>>(SdkError.Disposed(Op));
+            LoadCache();
             if (_source is null)
                 return Task.FromResult<SdkResult<RemoteConfigSnapshot>>(
                     new SdkError(Op + ".no_source", SdkErrorCategory.Configuration, "No remote config source registered", false));
 
-            LoadCache();
+            var round = StartRound();
+            if (round.IsCompleted || _main is null || _scheduler is null) return SdkTasks.WaitAsync(round, Op + ".fetch", ct);
 
-            // Single-flight: fetch dùng chung không bị hủy bởi token của caller.
+            // Chỉ giới hạn việc chờ của caller; kết quả giao trên main thread.
+            var wait = new VendorOperation<RemoteConfigSnapshot>(Op + ".fetch", _main, _scheduler, timeout, ct);
+            round.ContinueWith(t => wait.Complete(t.IsFaulted ? SdkError.FromException(Op + ".fetch", t.Exception!.GetBaseException()) : t.Result),
+                CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return wait.Task;
+        }
+
+        // Single-flight: một lượt init + fetch dùng chung, không bị hủy bởi caller.
+        Task<SdkResult<RemoteConfigSnapshot>> StartRound()
+        {
             var task = _inflight;
             if (task is null || task.IsCompleted)
             {
-                task = RunFetchAsync(_source, timeout);
+                _retryTimer?.Dispose();
+                _retryTimer = null;
+                task = RunRoundAsync(_source!);
                 _inflight = task;
             }
-            return SdkTasks.WaitAsync(task, Op + ".fetch", ct);
+            return task;
         }
 
-        async Task<SdkResult<RemoteConfigSnapshot>> RunFetchAsync(IRemoteConfigSource source, TimeSpan timeout)
+        async Task<SdkResult<RemoteConfigSnapshot>> RunRoundAsync(IRemoteConfigSource source)
         {
+            SdkResult init;
+            try
+            {
+                init = await source.InitializeAsync(CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                init = SdkError.FromException(Op + ".init", e, source.Id);
+            }
+            if (_disposed) return SdkError.Disposed(Op);
+            if (!init.IsSuccess)
+            {
+                _log.Warning("Remote config source init failed, running on " + _current.Value.Source + ": " + init.Error);
+                ScheduleRetry(init.Error!);
+                return init.Error!;
+            }
+
             SdkResult<RemoteConfigFetchResult> fetched;
             try
             {
-                fetched = await source.FetchAndActivateAsync(timeout, CancellationToken.None);
+                fetched = await source.FetchAndActivateAsync(_settings.WorkTimeout, CancellationToken.None);
             }
             catch (Exception e)
             {
@@ -126,10 +158,27 @@ namespace NovaGames.Mobile.RemoteConfig
             if (!fetched.TryGetValue(out var result))
             {
                 _log.Warning("Fetch failed, keeping " + _current.Value + ": " + fetched.Error);
+                ScheduleRetry(fetched.Error!);
                 return fetched.Error!;
             }
 
+            _retryAttempt = 0;
             return SdkResult<RemoteConfigSnapshot>.Ok(Activate(result.Values));
+        }
+
+        void ScheduleRetry(SdkError error)
+        {
+            if (_scheduler is null || _disposed || !error.IsRetryable) return;
+            var delays = _settings.RetryDelays;
+            if (_retryAttempt >= delays.Count) return;
+            var delay = delays[_retryAttempt++];
+            _log.Info("Retrying remote config in " + delay.TotalSeconds + " s");
+            _retryTimer?.Dispose();
+            _retryTimer = _scheduler.Schedule(delay, () =>
+            {
+                _retryTimer = null;
+                if (!_disposed) StartRound();
+            });
         }
 
         RemoteConfigSnapshot Activate(IReadOnlyDictionary<string, string> fetched)
@@ -190,6 +239,8 @@ namespace NovaGames.Mobile.RemoteConfig
         {
             if (_disposed) return;
             _disposed = true;
+            _retryTimer?.Dispose();
+            _retryTimer = null;
             _current.ClearSubscribers();
         }
 

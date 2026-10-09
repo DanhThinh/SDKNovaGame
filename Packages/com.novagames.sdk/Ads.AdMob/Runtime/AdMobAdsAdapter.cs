@@ -16,16 +16,23 @@ namespace NovaGames.Mobile.Ads.AdMob
     /// Adapter Google Mobile Ads (Unity plugin 11.5.x). AdMob tự đọc IABTCF do UMP ghi.
     /// GMA có thể bắn callback trên background thread: mọi callback được post về main thread trước khi đụng state.
     /// Collapsible banner: request extra `collapsible=top|bottom` (chỉ adapter này hỗ trợ).
+    /// Bid floor test (3 ID: HIGH -&gt; MEDIUM -&gt; MAIN) là logic riêng của adapter: AdsManager chỉ thấy unit main,
+    /// AdMobFloorCascade load tuần tự các unit floor và chọn tier giá cao nhất để show.
     /// </summary>
-    public sealed class AdMobAdsAdapter : IAdsAdapter
+    public sealed class AdMobAdsAdapter : IAdsAdapter, IAdMobFullScreenApi
     {
         const string Op = "ads.admob";
         const string CollapsibleExtra = "collapsible";
 
+        readonly ModuleContext _ctx;
         readonly IMainThreadDispatcher _main;
         readonly ISdkLogger _log;
+        // Ad full-screen và generation load theo slot: unit.Key, riêng tier của cascade theo AdUnitId (các tier cùng Key).
         readonly Dictionary<string, FullScreenAd> _ads = new Dictionary<string, FullScreenAd>(StringComparer.Ordinal);
         readonly Dictionary<string, int> _loadGenerations = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Cascade theo id của unit main (AdsManager gọi Load/Show bằng unit này) và theo id của mọi tier (route callback).
+        readonly Dictionary<string, AdMobFloorCascade> _cascades = new Dictionary<string, AdMobFloorCascade>(StringComparer.Ordinal);
+        readonly Dictionary<string, AdMobFloorCascade> _tierCascades = new Dictionary<string, AdMobFloorCascade>(StringComparer.Ordinal);
         readonly Dictionary<string, AdView> _views = new Dictionary<string, AdView>(StringComparer.Ordinal);
 
         IAdsAdapterListener? _listener;
@@ -37,6 +44,7 @@ namespace NovaGames.Mobile.Ads.AdMob
 
         public AdMobAdsAdapter(ModuleContext ctx)
         {
+            _ctx = ctx;
             _main = ctx.Main;
             _log = ctx.Logs.Create("ads.admob");
         }
@@ -84,6 +92,7 @@ namespace NovaGames.Mobile.Ads.AdMob
                 : Array.Empty<string>();
             try
             {
+                PrepareCascades(options);
                 ApplyRequestConfiguration();
                 MobileAds.Initialize(_ => _main.Post(() =>
                 {
@@ -100,11 +109,39 @@ namespace NovaGames.Mobile.Ads.AdMob
             return SdkTasks.WaitAsync(_init.Task, Op + ".init", ct);
         }
 
+        // Cascade chỉ bật theo Remote Config lúc init (ad_inter_floor_enabled / ad_rewarded_floor_enabled).
+        void PrepareCascades(AdsAdapterInitOptions options)
+        {
+            var settings = options.For(AdsProvider.AdMob).Settings as AdMobAdsSettings;
+            var plan = AdMobFloorPlan.Create(options.UnitsOf(AdsProvider.AdMob), settings, options.RemoteConfig, _log);
+            foreach (var (unit, tiers) in plan.Cascades)
+            {
+                var cascade = new AdMobFloorCascade(tiers, this, _ctx.Clock, _ctx.Scheduler, _log, settings!.FloorTierLoadTimeout,
+                    main => _listener?.OnLoaded(main), (main, error) => _listener?.OnLoadFailed(main, error));
+                _cascades[unit.AdUnitId] = cascade;
+                foreach (var tier in tiers) _tierCascades[tier.AdUnitId] = cascade;
+            }
+        }
+
+        // Tier của cascade có ad riêng theo AdUnitId; unit thường theo Key.
+        string Slot(AdUnit unit) => _tierCascades.ContainsKey(unit.AdUnitId) ? unit.AdUnitId : unit.Key;
+
+        AdMobFloorCascade? TierCascade(AdUnit unit) => _tierCascades.TryGetValue(unit.AdUnitId, out var cascade) ? cascade : null;
+
         // ---------------- Full-screen ----------------
 
         public void Load(AdUnit unit)
         {
-            int generation = NextLoadGeneration(unit.Key);
+            if (_cascades.TryGetValue(unit.AdUnitId, out var cascade)) cascade.Load();
+            else LoadFullScreen(unit);
+        }
+
+        void IAdMobFullScreenApi.Load(AdUnit unit) => LoadFullScreen(unit);
+        bool IAdMobFullScreenApi.IsReady(AdUnit unit) => IsFullScreenReady(unit);
+
+        void LoadFullScreen(AdUnit unit)
+        {
+            int generation = NextLoadGeneration(Slot(unit));
             var request = new AdRequest();
             switch (unit.Format)
             {
@@ -129,30 +166,37 @@ namespace NovaGames.Mobile.Ads.AdMob
             var failure = ad is null || error != null ? MapError(error) : null;
             _main.Post(() =>
             {
-                if (_disposed || _listener is null || !IsCurrentLoad(unit.Key, generation))
+                var slot = Slot(unit);
+                if (_disposed || _listener is null || !IsCurrentLoad(slot, generation))
                 {
                     if (ad != null) _log.TryRun("Destroy", () => wrap(ad).Destroy());
                     return;
                 }
+                // Tier của cascade: cascade quyết định có báo AdsManager hay không (một kết quả mỗi lượt).
+                var cascade = TierCascade(unit);
                 if (failure != null)
                 {
-                    _listener.OnLoadFailed(unit, failure);
+                    if (cascade != null) cascade.OnTierLoadFailed(unit.AdUnitId, failure);
+                    else _listener.OnLoadFailed(unit, failure);
                     return;
                 }
 
-                if (_ads.TryGetValue(unit.Key, out var previous)) _log.TryRun("Destroy", previous.Destroy);
+                if (_ads.TryGetValue(slot, out var previous)) _log.TryRun("Destroy", previous.Destroy);
                 var entry = wrap(ad!);
-                _ads[unit.Key] = entry;
+                _ads[slot] = entry;
                 RegisterEvents(unit, entry);
-                _listener.OnLoaded(unit);
+                if (cascade != null) cascade.OnTierLoaded(unit.AdUnitId);
+                else _listener.OnLoaded(unit);
             });
         }
 
+        // Callback show mang unit của tier (cùng Key với unit main, AdUnitId riêng: revenue theo tier).
         void RegisterEvents(AdUnit unit, FullScreenAd entry)
         {
             entry.Opened += () => _main.Post(() => _listener?.OnDisplayed(unit, entry.Operation));
             entry.Closed += () => _main.Post(() =>
             {
+                TierCascade(unit)?.EndShow();
                 _listener?.OnClosed(unit, entry.Operation);
                 Release(unit, entry);
             });
@@ -161,6 +205,7 @@ namespace NovaGames.Mobile.Ads.AdMob
                 var message = SafeMessage(error);
                 _main.Post(() =>
                 {
+                    TierCascade(unit)?.EndShow();
                     _listener?.OnDisplayFailed(unit, entry.Operation, message);
                     Release(unit, entry);
                 });
@@ -176,17 +221,25 @@ namespace NovaGames.Mobile.Ads.AdMob
         // Ad full-screen của GMA dùng một lần: sau close/fail thì destroy.
         void Release(AdUnit unit, FullScreenAd entry)
         {
-            if (_ads.TryGetValue(unit.Key, out var current) && current == entry) _ads.Remove(unit.Key);
+            var slot = Slot(unit);
+            if (_ads.TryGetValue(slot, out var current) && current == entry) _ads.Remove(slot);
             _log.TryRun("Destroy", entry.Destroy);
         }
 
-        public bool IsReady(AdUnit unit) => _ads.TryGetValue(unit.Key, out var entry) && !entry.Shown && entry.CanShowAd();
+        public bool IsReady(AdUnit unit) =>
+            _cascades.TryGetValue(unit.AdUnitId, out var cascade) ? cascade.IsReady : IsFullScreenReady(unit);
 
-        public void Show(AdUnit unit, string placementId, Guid showOperationId)
+        bool IsFullScreenReady(AdUnit unit) => _ads.TryGetValue(Slot(unit), out var entry) && !entry.Shown && entry.CanShowAd();
+
+        public void Show(AdUnit main, string placementId, Guid showOperationId)
         {
-            if (!_ads.TryGetValue(unit.Key, out var entry))
+            // Cascade: show tier giá cao nhất đang có ad.
+            var cascade = _cascades.TryGetValue(main.AdUnitId, out var c) ? c : null;
+            var unit = cascade?.BeginShow() ?? main;
+            if (!_ads.TryGetValue(Slot(unit), out var entry))
             {
                 // Không throw: báo display fail qua callback để AdsManager nhả lock.
+                cascade?.EndShow();
                 _main.Post(() => _listener?.OnDisplayFailed(unit, showOperationId, "No loaded ad for " + unit));
                 return;
             }
@@ -208,10 +261,25 @@ namespace NovaGames.Mobile.Ads.AdMob
 
         public void Discard(AdUnit unit)
         {
+            if (!_cascades.TryGetValue(unit.AdUnitId, out var cascade))
+            {
+                DiscardSlot(Slot(unit));
+                return;
+            }
+            // Cascade: dừng lượt đang chạy và bỏ ad của mọi tier (trừ ad đang hiện, Closed sẽ destroy).
+            cascade.Discard();
+            foreach (var pair in _tierCascades)
+            {
+                if (pair.Value == cascade) DiscardSlot(pair.Key, keepShown: true);
+            }
+        }
+
+        void DiscardSlot(string slot, bool keepShown = false)
+        {
             // API load của GMA không hủy được: tăng generation để callback tới sau bị coi là cũ và bỏ qua.
-            NextLoadGeneration(unit.Key);
-            if (!_ads.TryGetValue(unit.Key, out var entry)) return;
-            _ads.Remove(unit.Key);
+            NextLoadGeneration(slot);
+            if (!_ads.TryGetValue(slot, out var entry) || (keepShown && entry.Shown)) return;
+            _ads.Remove(slot);
             entry.Destroy();
         }
 
@@ -452,6 +520,7 @@ namespace NovaGames.Mobile.Ads.AdMob
         {
             if (_disposed) return;
             _disposed = true;
+            foreach (var cascade in _cascades.Values) cascade.Dispose();
             foreach (var entry in _ads.Values) _log.TryRun("Destroy", entry.Destroy);
             _ads.Clear();
             _loadGenerations.Clear();

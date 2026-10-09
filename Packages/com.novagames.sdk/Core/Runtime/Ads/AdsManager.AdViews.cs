@@ -59,10 +59,20 @@ namespace NovaGames.Mobile.Ads
                 {
                     if (existing.State == AdViewState.Hidden)
                     {
-                        if (existing.Requested)
+                        if (existing.Requested && existing.FailedWhileHidden)
+                        {
+                            // Lần load đầu lỗi lúc đang ẩn: view của vendor không có ad và không tự refresh, tạo lại.
+                            _log.TryRun("DestroyAdView", () => _adapter.DestroyAdView(existing.Unit));
+                            existing.Requested = false;
+                            existing.FailedWhileHidden = false;
+                            existing.State = AdViewState.Loading;
+                            if (IsReadyState && GateBlockReason() is null) RequestAdView(existing);
+                        }
+                        else if (existing.Requested)
                         {
                             _log.TryRun("ShowAdView", () => _adapter.ShowAdView(existing.Unit, existing.Request));
-                            existing.State = AdViewState.Visible;
+                            // Chưa có ad (lần load đầu còn đang chạy): vẫn là Loading để lỗi sau đó được retry.
+                            existing.State = existing.Loaded ? AdViewState.Visible : AdViewState.Loading;
                         }
                         else
                         {
@@ -115,6 +125,8 @@ namespace NovaGames.Mobile.Ads
                 collapse,
                 entry.MrecOptions?.PixelPosition);
             entry.Requested = true;
+            entry.Loaded = false;
+            entry.FailedWhileHidden = false;
             entry.State = AdViewState.Loading;
             _log.TryRun("ShowAdView", () => _adapter!.ShowAdView(entry.Unit, entry.Request));
         }
@@ -186,13 +198,21 @@ namespace NovaGames.Mobile.Ads
             entry.RetryTimer?.Dispose();
             entry.RetryTimer = null;
             entry.Attempt = 0;
+            entry.Loaded = true;
+            entry.FailedWhileHidden = false;
             if (entry.State == AdViewState.Loading || entry.State == AdViewState.Failed) entry.State = AdViewState.Visible;
         }
 
         void HandleAdViewLoadFailed(AdViewEntry entry, AdLoadError error)
         {
             // Vendor tự refresh sau lần load thành công; lần load đầu lỗi thì tạo lại view theo backoff.
-            if (entry.State == AdViewState.Visible || entry.State == AdViewState.Hidden) return;
+            if (entry.Loaded) return;
+            // Đang ẩn: không tạo lại (view mới sẽ hiện lên); đánh dấu để lần Show sau tạo lại.
+            if (entry.State == AdViewState.Hidden)
+            {
+                entry.FailedWhileHidden = true;
+                return;
+            }
             entry.State = AdViewState.Failed;
             ScheduleAdViewRetry(entry, error);
         }
@@ -253,6 +273,10 @@ namespace NovaGames.Mobile.Ads
             public MrecOptions? MrecOptions { get; }
             public AdViewRequest Request = null!;
             public bool Requested;
+            // View hiện tại của vendor đã load thành công ít nhất một lần (sau đó vendor tự refresh).
+            public bool Loaded;
+            // Lần load đầu lỗi trong lúc game đang ẩn view: Show lần sau phải tạo lại view.
+            public bool FailedWhileHidden;
             public AdViewState State = AdViewState.Loading;
             public BannerLayout Layout = BannerLayout.None;
             public MrecSize MrecSize = MrecSize.None;

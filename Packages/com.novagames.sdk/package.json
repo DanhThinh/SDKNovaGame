@@ -1,6 +1,6 @@
 {
   "name": "com.novagames.sdk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "NovaGames Mobile SDK",
   "description": "Ads (MAX/AdMob), Firebase (Analytics, Remote Config, Crashlytics), Adjust, UMP/ATT, Unity IAP, local notifications, no-internet and rating popups behind one static Nova* API. Vendor plugins are installed by the game; each adapter compiles only when its vendor is present. Docs: Docs/Guide.md, Docs/Overview.md.",
   "unity": "6000.0",
