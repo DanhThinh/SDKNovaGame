@@ -33,7 +33,7 @@ Core (NovaGames.Mobile.Core)          ← logic nghiệp vụ trung lập vendor
    │                                     IapService, NotificationService, policy, contract/SPI
    │  SPI (IAdsAdapter, ITrackingSink, IRemoteConfigSource, IStoreAdapter, IConsentPlatform, ...)
    ▼
-Adapter (mỗi vendor một assembly)     ← chỉ dịch qua lại API vendor, tự đăng ký vào AdapterRegistry
+Adapter (mỗi vendor một assembly)     ← chỉ dịch qua lại API vendor; component NovaModule đăng ký vào AdapterRegistry
    ▼
 Vendor SDK (MAX, GMA, Firebase, Adjust, Unity IAP, ...)
 ```
@@ -41,7 +41,7 @@ Vendor SDK (MAX, GMA, Firebase, Adjust, Unity IAP, ...)
 Nguyên tắc chính:
 
 - **Core không biết vendor.** Core chỉ chứa contract/SPI và service trung lập. Logic chỉ một vendor cần (vd. bid floor cascade của MAX) nằm trong adapter của vendor đó.
-- **Adapter tự đăng ký.** Mỗi adapter có hàm `[RuntimeInitializeOnLoadMethod(AfterAssembliesLoaded)]` gọi `AdapterRegistry.RegisterXxx(id, factory)`. `NovaSdk` lấy `AdapterRegistry.Snapshot()` và chỉ tạo adapter cho module đang bật. Registry reset ở `SubsystemRegistration` nên vẫn đúng khi tắt Domain Reload.
+- **Module là GameObject.** Mỗi adapter có một component `XxxModule : NovaModule` (file riêng, tên trùng class) nằm trên GameObject con của `NovaModules` (có sẵn trên prefab NovaSdk). `NovaSdk.InitializeAsync` tìm mọi `NovaModule` trong scene, gọi `Register()` → `AdapterRegistry.RegisterXxx(id, factory)`, rồi lấy `AdapterRegistry.Snapshot()` và chỉ tạo adapter cho module đang bật. Vì component nằm trong scene, IL2CPP luôn giữ assembly adapter (không cần `AlwaysLinkAssembly`/link.xml). `Facade/Editor/NovaModulesSync.cs` tự thêm module của vendor đã cài, xóa module mất script, và lúc build bỏ module không compile cho nền tảng đích. Registry reset ở `SubsystemRegistration` nên vẫn đúng khi tắt Domain Reload.
 - **Assembly adapter có define constraint** (`NOVA_MAX`, `NOVA_FIREBASE_APP`, …). Chưa cài vendor → assembly không compile → module tắt, game vẫn chạy.
 - **Kết quả, không exception.** API async trả `SdkResult` / `SdkResult<T>`; lỗi là `SdkError(Code, Category, Message, IsRetryable, Provider, Exception)`. Exception của vendor bị bắt tại biên adapter.
 - **Exactly-once với callback vendor.** Mọi callback vendor đi qua `VendorOperation<T>` hoặc `VendorTask.ObserveAsync`: callback, timeout hay cancel — cái nào đến trước thì thắng, kết quả luôn trả về main thread.
@@ -109,7 +109,7 @@ Packages/com.novagames.sdk/
 | `NovaGames.Mobile.Notifications.Unity` | `Notifications/Runtime/Unity` | Core, Unity.Notifications | `NOVA_NOTIFICATIONS` (`com.unity.mobile.notifications` ≥ 2.0.0) |
 | `NovaGames.Mobile.NoInternet` | `NoInternet/Runtime` | Core, Facade, UI | luôn có (autoReferenced) |
 | `NovaGames.Mobile.Rating` | `Rating/Runtime` | Core, Facade, UI | luôn có (autoReferenced) |
-| `NovaGames.Mobile.Rating.PlayReview` | `Rating/Runtime/PlayReview` | Rating, Google.Play.Review | `NOVA_PLAY_REVIEW`, Android/Editor |
+| `NovaGames.Mobile.Rating.PlayReview` | `Rating/Runtime/PlayReview` | Core, Rating, Google.Play.Review | `NOVA_PLAY_REVIEW`, Android/Editor |
 | `NovaGames.Mobile.Bootstrap` | `Bootstrap/Runtime` | Core, Facade, NoInternet, Rating, UI, Unity.InputSystem (nếu có) | luôn có (autoReferenced) |
 | `NovaGames.Mobile.Samples` | `Samples/Scripts` | Core, Facade, NoInternet, Rating | không autoReferenced |
 | `NovaGames.Mobile.Samples.Editor` | `Samples/Editor` | Samples, Core | Editor |
@@ -126,6 +126,8 @@ Packages/com.novagames.sdk/
 |---|---|
 | `AssemblyInfo.cs` | `InternalsVisibleTo` cho các assembly test. |
 | `Bootstrap/AdapterRegistry.cs` | Registry tĩnh các factory adapter (RemoteConfig, TrackingSink, Ads, Consent, Store, Notifications, CrashReporter, ATT); `AdapterRegistrySnapshot` bất biến, `CreateAds` chọn một adapter hoặc `RoutingAdsAdapter`. |
+| `Bootstrap/NovaModule.cs` | Base component của module SDK: `Register()` đăng ký factory adapter; `RegisterLoaded` (NovaSdk gọi) đăng ký mọi module trong scene. |
+| `Bootstrap/NovaModules.cs` | Component chứa các module (GameObject con); có trên prefab NovaSdk. |
 | `Bootstrap/ModuleContext.cs` | `RuntimeSdkSettings` (Dev/Prod, log level, options từng module, sink settings) và `ModuleContext` (gói hạ tầng Main/Clock/Scheduler/Store/Logs; `CreateDefault` dựng bản Unity). |
 | `Common/IsExternalInit.cs` | Polyfill để dùng `record`/`init` trên .NET Standard 2.1. |
 | `Common/Async/VendorOperation.cs` | `VendorOperation<T>` (hoàn tất đúng một lần: callback/timeout/cancel, trả về main thread), `VendorTask` (bọc Task vendor, map lỗi), `SdkTasks` (chờ task dùng chung có cancel/timeout). |
@@ -225,6 +227,7 @@ Packages/com.novagames.sdk/
 | `Editor/AttBuildStep.cs` | Post-build iOS: link `AppTrackingTransparency.framework`, ghi `NSUserTrackingUsageDescription`. |
 | `Editor/NovaSettingsLocator.cs` | Tìm asset `NovaSdkSettings` cho bước build (ưu tiên asset của game hơn asset của sample). |
 | `Editor/NovaSetupWindow.cs` | Menu *NovaGames > Setup*: checklist tích hợp, nút tạo NovaSdkSettings / asset config / script RemoteKey, thêm prefab NovaSdk vào scene; tự mở một lần khi project chưa có NovaSdkSettings. |
+| `Editor/NovaModulesSync.cs` | Đồng bộ GameObject module dưới `NovaModules` với vendor đã cài (mở scene, đổi hierarchy); `IProcessSceneWithReport` chạy lại lúc build/Play, khi build bỏ module không thuộc nền tảng đích. |
 | `Editor/ReleaseBuildValidator.cs` | Kiểm tra trước khi build Android/iOS, chặn bản release cấu hình sai; menu *Check Release Build*. |
 
 ### Ads.Max, Ads.AdMob
@@ -233,11 +236,11 @@ Packages/com.novagames.sdk/
 |---|---|
 | `Ads.Max/Runtime/AssemblyInfo.cs` | `InternalsVisibleTo` cho test Ads.Max. |
 | `Ads.Max/Runtime/IsExternalInit.cs` | Polyfill `record`/`init` cho assembly này. |
-| `Ads.Max/Runtime/MaxAdsAdapter.cs` | Adapter MAX: consent, selective init, tham số bid floor, full-screen/banner/MREC, chuẩn hóa callback, revenue; `MaxRegistration` đăng ký id `max`. |
+| `Ads.Max/Runtime/MaxAdsAdapter.cs` | Adapter MAX: consent, selective init, tham số bid floor, full-screen/banner/MREC, chuẩn hóa callback, revenue; `MaxModule` (file riêng) đăng ký id `max`. |
 | `Ads.Max/Runtime/MaxAdsConfig.cs` | Asset *Ads Config (MAX)*: ID 5 format, banner, unit floor, timeout tier, test device; validate; sinh `MaxAdsSettings`. |
 | `Ads.Max/Runtime/MaxFloorSettings.cs` | `MaxFloorCascadeSettings`, `MaxAdsSettings`, `MaxFloorKeys` (cờ Remote Config), `MaxFloorPlan` (tính selective init, B2B, auto-retry). |
 | `Ads.Max/Runtime/MaxFloorCascade.cs` | `IMaxFullScreenApi` và state machine HIGH → MEDIUM → MAIN cho một unit main. |
-| `Ads.AdMob/Runtime/AdMobAdsAdapter.cs` | Adapter Google Mobile Ads: RequestConfiguration, full-screen dùng một lần, banner/MREC, collapsible banner, revenue micros → USD, Ad Inspector; `AdMobRegistration` đăng ký id `admob`. |
+| `Ads.AdMob/Runtime/AdMobAdsAdapter.cs` | Adapter Google Mobile Ads: RequestConfiguration, full-screen dùng một lần, banner/MREC, collapsible banner, revenue micros → USD, Ad Inspector; `AdMobModule` (file riêng) đăng ký id `admob`. |
 
 ### Firebase
 
@@ -275,7 +278,7 @@ Packages/com.novagames.sdk/
 | `Privacy/Runtime/Ump/UmpConsentMapper.cs` | Hàm thuần: trạng thái UMP + chuỗi IAB → `ConsentSnapshot`. |
 | `Privacy/Runtime/Ump/UmpConsentPlatform.cs` | `IConsentPlatform`: đọc consent đã lưu, gather với timeout 10 s, form privacy options. |
 | `Privacy/Runtime/Ump/AssemblyInfo.cs`, `IsExternalInit.cs` | `InternalsVisibleTo` cho test; polyfill `record`/`init`. |
-| `Privacy/Runtime/Att/AppleAttPlatform.cs` | `IAttPlatform` gọi plugin native; chỉ đăng ký trên iOS thật. |
+| `Privacy/Runtime/Att/AppleAttPlatform.cs` | `IAttPlatform` gọi plugin native; `AppleAttModule` chỉ đăng ký trên iOS thật. |
 | `Privacy/Runtime/Att/Plugins/iOS/NovaAtt.mm` | Native gọi `ATTrackingManager`, chờ app active rồi hỏi (thử lại tối đa 3 lần). |
 | `Iap/Runtime/UnityIap/UnityIapStoreAdapter.cs` | Adapter Unity IAP 5 cho `IStoreAdapter` + `IReceiptValidator` (receipt Google Play bằng license key); đăng ký id `unity_iap`. |
 | `Iap/Editor/GooglePlayLicenseKeyWindow.cs` | Cửa sổ nhập license key, sinh `Assets/NovaGames/Generated/NovaGooglePlayLicense.cs` trong game (file đó gọi `GooglePlayLicense.Register` lúc khởi động). |
@@ -284,7 +287,7 @@ Packages/com.novagames.sdk/
 | `NoInternet/Runtime/NoInternetPopup.cs` | Popup mất mạng: che màn hình, pause game, ẩn MREC, chặn app open, nút Settings/Retry. |
 | `Rating/Runtime/NovaRating.cs` | Facade tĩnh `NovaRating` + interface `IInAppReviewProvider`. |
 | `Rating/Runtime/RatingPopup.cs` | Popup 5 sao: đủ sao → store, ít sao → góp ý, Later/Never. |
-| `Rating/Runtime/PlayReview/PlayInAppReviewProvider.cs` | Google Play In-App Review, tự gắn vào `NovaRating`. |
+| `Rating/Runtime/PlayReview/PlayInAppReviewProvider.cs` | Google Play In-App Review; `PlayInAppReviewModule` gắn vào `NovaRating` khi NovaSdk init. |
 | `Bootstrap/Runtime/NovaSdkBootstrap.cs` | Component của prefab NovaSdk: gọi `NovaSdk.InitializeAsync`, tạo popup mất mạng + đánh giá, tạo EventSystem khi scene chưa có, áp Remote Config (`no_internet_popup_on`, `level_show_rate`) theo tên key; `DontDestroyOnLoad`, giữ một bản. |
 
 Asset kèm module: `NoInternet/Prefabs/NoInternetPopup.prefab` (Canvas sortingOrder 30000), `Rating/Prefabs/RatingPopup.prefab` (sortingOrder 29000), `Rating/Prefabs/Star.png`, `Bootstrap/Prefabs/NovaSdk.prefab`.
@@ -337,7 +340,7 @@ Quy ước: patch = sửa lỗi; minor = thêm tính năng, không phá API; maj
 
 1. Tạo assembly riêng, chỉ reference Core + vendor, đặt `defineConstraints` + `versionDefines` theo package vendor.
 2. Cài SPI tương ứng trong Core (`IAdsAdapter`, `ITrackingSink`, `IRemoteConfigSource`, `IStoreAdapter`, `INotificationPlatform`, `ICrashReporter`, `IConsentPlatform`, `IAttPlatform`).
-3. Đăng ký factory ở `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]` bằng `AdapterRegistry.RegisterXxx(id, ctx => ...)`.
+3. Thêm component `XxxModule : NovaModule` trong file riêng `XxxModule.cs` (tên file trùng tên class, có `[AddComponentMenu("NovaGames/Modules/<Tên>")]`), override `Register()` gọi `AdapterRegistry.RegisterXxx(id, ctx => ...)`. Editor tự thêm module vào scene; không dùng `RuntimeInitializeOnLoadMethod` hay `AlwaysLinkAssembly`.
 4. Callback vendor đi qua `VendorOperation<T>`/`VendorTask`; dùng `ctx.Main`, `ctx.Scheduler`, `ctx.Clock`; bắt mọi exception tại biên.
 5. Không giữ logic nghiệp vụ chung (cache, journal, capping thuộc service Core); logic chỉ vendor này cần thì để trong adapter.
 6. Bọc API tĩnh của vendor sau interface nhỏ để viết test trong `Tests/<Module>/Editor`.

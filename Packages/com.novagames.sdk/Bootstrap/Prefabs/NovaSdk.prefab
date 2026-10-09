@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4410582217393101825}
   - component: {fileID: 4410582217393101826}
+  - component: {fileID: 4410582217393101827}
   m_Layer: 0
   m_Name: NovaSdk
   m_TagString: Untagged
@@ -51,3 +52,15 @@ MonoBehaviour:
   ratingPopupPrefab: {fileID: 6271035582527274683, guid: 9328dcacd9a28004b8735602fe00f8a8, type: 3}
   ratingMinLevelRemoteKey: level_show_rate
   createEventSystem: 1
+--- !u!114 &4410582217393101827
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4410582217393101824}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb5093c0fa44186929d16f68992d092, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

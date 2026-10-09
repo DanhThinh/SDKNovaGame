@@ -81,6 +81,12 @@ namespace NovaGames.Mobile
             if (setup.AdjustSettings != null && settings.Adjust != null)
                 runtimeSettings = runtimeSettings.WithSinkSettings(settings.Adjust.SinkId, setup.AdjustSettings);
 
+            // Module (Firebase, Ads...) là component con của NovaModules trong scene: đăng ký adapter trước khi lấy snapshot.
+            NovaModule.RegisterLoaded();
+            if (UnityEngine.Object.FindAnyObjectByType<NovaModules>(FindObjectsInactive.Include) == null)
+                Debug.LogError("[Nova] NovaSdk.InitializeAsync: no NovaModules in the scene, so no vendor module (Firebase, ads...) " +
+                               "is registered. Use the NovaSdk prefab, or add the NovaGames/Nova Modules component to a GameObject.");
+
             var ctx = ModuleContext.CreateDefault(runtimeSettings);
             var lifecycle = ApplicationLifecycleHost.Create();
             s_initialization = InitializeAsync(setup, ctx, AdapterRegistry.Snapshot(), lifecycle, new UnityNetworkStatus(), lifecycle);

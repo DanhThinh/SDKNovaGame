@@ -8,9 +8,6 @@ using NovaGames.Mobile.Diagnostics;
 using NovaGames.Mobile.Infrastructure;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Firebase
 {
     // Bọc static API của vendor để test thay thế được.
@@ -111,12 +108,5 @@ namespace NovaGames.Mobile.Firebase
         }
 
         public void Dispose() => _disposed = true;
-    }
-
-    static class FirebaseCrashlyticsRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterCrashReporter(CrashReporterIds.FirebaseCrashlytics, ctx => new FirebaseCrashlyticsReporter(ctx));
     }
 }

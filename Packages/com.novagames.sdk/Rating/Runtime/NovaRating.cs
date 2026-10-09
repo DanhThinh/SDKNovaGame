@@ -240,7 +240,7 @@ namespace NovaGames.Mobile
             Popups.Clear();
             MinLevel = -1;
             Closed = null;
-            // s_androidReview giữ nguyên: adapter đăng ký ở AfterAssembliesLoaded.
+            // s_androidReview giữ nguyên: module PlayInAppReview đăng ký lại khi NovaSdk init.
         }
     }
 }

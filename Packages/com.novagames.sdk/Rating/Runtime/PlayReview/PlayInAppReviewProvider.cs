@@ -3,9 +3,6 @@ using System;
 using Google.Play.Review;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Rating
 {
     /// <summary>
@@ -63,11 +60,5 @@ namespace NovaGames.Mobile.Rating
                 done(false);
             }
         }
-    }
-
-    static class PlayInAppReviewRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() => NovaRating.SetInAppReviewProvider(new PlayInAppReviewProvider());
     }
 }

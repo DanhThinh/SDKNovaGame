@@ -10,9 +10,6 @@ using NovaGames.Mobile.Privacy;
 using NovaGames.Mobile.Tracking;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Attribution
 {
     /// <summary>
@@ -366,12 +363,5 @@ namespace NovaGames.Mobile.Attribution
             _deepLinkSubscription = null;
             _consentReceived.TrySetResult(false);
         }
-    }
-
-    static class AdjustRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterTrackingSink(TrackingSinkIds.Adjust, ctx => new AdjustSink(ctx));
     }
 }

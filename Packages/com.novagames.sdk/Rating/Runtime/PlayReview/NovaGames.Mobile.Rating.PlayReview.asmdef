@@ -2,6 +2,7 @@
     "name": "NovaGames.Mobile.Rating.PlayReview",
     "rootNamespace": "NovaGames.Mobile.Rating",
     "references": [
+        "NovaGames.Mobile.Core",
         "NovaGames.Mobile.Rating",
         "Google.Play.Review",
         "Google.Play.Common"

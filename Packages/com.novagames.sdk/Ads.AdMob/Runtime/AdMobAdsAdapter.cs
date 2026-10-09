@@ -10,9 +10,6 @@ using NovaGames.Mobile.Privacy;
 using NovaGames.Mobile.Tracking;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Ads.AdMob
 {
     /// <summary>
@@ -561,11 +558,5 @@ namespace NovaGames.Mobile.Ads.AdMob
             public override void Show() => _ad.Show();
             public override void Destroy() => _ad.Destroy();
         }
-    }
-
-    static class AdMobRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() => AdapterRegistry.RegisterAds(AdProviderIds.AdMob, ctx => new AdMobAdsAdapter(ctx));
     }
 }

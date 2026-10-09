@@ -9,9 +9,6 @@ using NovaGames.Mobile.Privacy;
 using NovaGames.Mobile.Tracking;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Ads.Max
 {
     /// <summary>
@@ -568,11 +565,5 @@ namespace NovaGames.Mobile.Ads.Max
             _init?.TrySetResult(SdkError.Disposed(Op));
             _listener = null;
         }
-    }
-
-    static class MaxRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() => AdapterRegistry.RegisterAds(AdProviderIds.Max, ctx => new MaxAdsAdapter(ctx));
     }
 }

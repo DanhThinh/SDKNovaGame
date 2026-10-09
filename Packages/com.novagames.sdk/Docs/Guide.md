@@ -161,6 +161,7 @@ Lúc khởi động, SDK log các lỗi cấu hình với prefix `Settings:` (as
 - tạo popup mất mạng và popup đánh giá (để trống ô prefab tương ứng nếu không dùng);
 - tạo `EventSystem` khi scene chưa có (scene có EventSystem riêng thì bản của SDK tự tắt);
 - áp Remote Config: key Bool `no_internet_popup_on` bật/tắt popup mất mạng, key Int `level_show_rate` → `NovaRating.MinLevel`. Đổi tên key ngay trên Inspector; asset Remote Config không có key đó thì bỏ qua.
+- chứa các module SDK là GameObject con (`Firebase Remote Config`, `AppLovin MAX`, `AdMob`, `Adjust`, `Google UMP`, `Unity IAP`…), mỗi vendor một con. Không cần thêm tay: mở scene là Editor tự thêm module của vendor đã cài, gỡ vendor thì module mất script được tự xóa; lúc build tự bỏ module không dùng cho nền tảng đó (vd. ATT khi build Android). Lưu scene sau khi module được thêm (nếu quên, lúc build và lúc Play vẫn tự thêm). Module có trong scene nên khi build IL2CPP không bị strip.
 
 Scene đầu chuyển sang scene chính sau khi SDK sẵn sàng:
 
@@ -173,6 +174,8 @@ async void Start()
 ```
 
 **Cách 2 — tự viết script:**
+
+Script khởi động vẫn cần component **Nova Modules** (*Add Component > NovaGames > Nova Modules*) trên một GameObject trong scene đầu tiên để Editor thêm các module vào đó; thiếu thì SDK log lỗi "no NovaModules in the scene" và không vendor nào chạy.
 
 ```csharp
 using NovaGames.Mobile;
@@ -530,6 +533,7 @@ Khi build Android/iOS **release** (không tick Development Build), các lỗi sa
 |---|---|
 | Log "settings is null" / "kéo asset NovaSdkSettings vào ô Settings" | Chưa kéo `NovaSdkSettings` vào prefab `NovaSdk` (hoặc script tự viết). SDK vẫn Ready nhưng mọi API là no-op. |
 | "must be called on Unity's main thread" | `InitializeAsync` gọi từ thread khác. |
+| "no NovaModules in the scene" / "adapter is not installed" | Scene gọi `InitializeAsync` không có prefab `NovaSdk` hoặc component *Nova Modules*. Thêm prefab (hoặc component), mở scene để Editor thêm các module con rồi lưu. |
 | "Remote Config is not ready…" / "uses Remote Config Definitions of X, not Y" | Chưa gán Remote Config Definitions, hoặc gọi `GetInt` với enum khác enum của asset. |
 | Code game không thấy `RemoteKey` | Assembly của sample không được auto-reference; tạo script bằng **NovaGames > Setup** (mục 7). |
 | Ads không load | Chưa có consent (Consent Source = Game mà chưa `SetConsent`; UMP chưa cài), adapter chưa cài, hoặc mediation = None. Xem log `Ads:` lúc khởi động. |

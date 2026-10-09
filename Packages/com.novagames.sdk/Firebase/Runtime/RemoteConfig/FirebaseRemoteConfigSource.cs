@@ -9,9 +9,6 @@ using NovaGames.Mobile.Infrastructure;
 using NovaGames.Mobile.RemoteConfig;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Firebase
 {
     /// <summary>Adapter Firebase cho IRemoteConfigSource. Default, cache và validation thuộc RemoteConfigService (Core).</summary>
@@ -215,12 +212,5 @@ namespace NovaGames.Mobile.Firebase
             _disposed = true;
             _initialized = false;
         }
-    }
-
-    static class FirebaseRemoteConfigRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterRemoteConfig(RemoteConfigSourceIds.Firebase, ctx => new FirebaseRemoteConfigSource(ctx));
     }
 }

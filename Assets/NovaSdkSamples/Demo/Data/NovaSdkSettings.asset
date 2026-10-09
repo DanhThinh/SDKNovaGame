@@ -22,10 +22,14 @@ MonoBehaviour:
     banner: 2
     mrec: 2
   pauseGameDuringFullScreenAds: 1
+  crashReporting: 1
+  uncaughtExceptionsAsFatal: 0
   adjust: {fileID: 11400000, guid: 47fdac8528274f346969f17a90bf672e, type: 2}
   iap: {fileID: 11400000, guid: 3e22382bcd258b748aad74ccf9b8beed, type: 2}
   notifications: {fileID: 11400000, guid: 27dee8f8ce85b3c44bf7daed68d8c291, type: 2}
-  consentSource: 2
+  consentSource: 0
   underAgeOfConsent: 0
-  debugGeography: 0
+  debugGeography: 2
   consentTestDeviceHashedIds: []
+  requestAttOnStartup: 1
+  attUsageDescription: Your data will be used to deliver personalized ads to you.

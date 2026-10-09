@@ -10,9 +10,6 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 #endif
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Privacy.Att
 {
     /// <summary>
@@ -110,10 +107,6 @@ namespace NovaGames.Mobile.Privacy.Att
 
         static int NativeGetStatus() => NovaAtt_GetStatus();
         static void NativeRequest() => NovaAtt_Request(OnNativeResult);
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterAttPlatform(AttPlatformIds.Apple, ctx => new AppleAttPlatform(ctx));
 #else
         static int NativeGetStatus() => -1;
         static void NativeRequest() => OnNativeResult(-1);

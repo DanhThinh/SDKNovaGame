@@ -9,9 +9,6 @@ using UnityEngine;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Security;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Iap
 {
     /// <summary>
@@ -380,11 +377,5 @@ namespace NovaGames.Mobile.Iap
             _pending.Clear();
             _listener = null;
         }
-    }
-
-    static class UnityIapRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() => AdapterRegistry.RegisterStore(StoreAdapterIds.UnityIap, ctx => new UnityIapStoreAdapter(ctx));
     }
 }

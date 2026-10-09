@@ -12,9 +12,6 @@ using Unity.Notifications.Android;
 using Unity.Notifications.iOS;
 #endif
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Notifications
 {
     /// <summary>
@@ -256,12 +253,5 @@ namespace NovaGames.Mobile.Notifications
             _ => NotificationPermission.Granted,
         };
 #endif
-    }
-
-    static class UnityNotificationRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterNotifications(NotificationPlatformIds.Unity, ctx => new UnityNotificationPlatform(ctx));
     }
 }

@@ -13,7 +13,7 @@ using UnityEngine;
 namespace NovaGames.Mobile.Bootstrap
 {
     /// <summary>
-    /// Adapter tự đăng ký factory ở AfterAssembliesLoaded; composition root (NovaSdk) lấy Snapshot() rồi
+    /// Module (NovaModule trong scene) đăng ký factory khi NovaSdk init; composition root (NovaSdk) lấy Snapshot() rồi
     /// chỉ tạo adapter cần dùng.
     /// </summary>
     public static class AdapterRegistry

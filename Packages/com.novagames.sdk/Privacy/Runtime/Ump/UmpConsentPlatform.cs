@@ -6,9 +6,6 @@ using NovaGames.Mobile.Bootstrap;
 using NovaGames.Mobile.Infrastructure;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Privacy.Ump
 {
     /// <summary>
@@ -164,12 +161,5 @@ namespace NovaGames.Mobile.Privacy.Ump
             _disposed = true;
             _lifetime.Cancel();
         }
-    }
-
-    static class UmpRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterConsentPlatform(ConsentPlatformIds.GoogleUmp, ctx => new UmpConsentPlatform(ctx));
     }
 }

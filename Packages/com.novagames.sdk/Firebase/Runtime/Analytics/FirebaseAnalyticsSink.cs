@@ -9,9 +9,6 @@ using NovaGames.Mobile.Privacy;
 using NovaGames.Mobile.Tracking;
 using UnityEngine;
 
-// Package adapters can be used only through runtime registration, without a scene reference.
-[assembly: UnityEngine.Scripting.AlwaysLinkAssembly]
-
 namespace NovaGames.Mobile.Firebase
 {
     /// <summary>
@@ -323,12 +320,5 @@ namespace NovaGames.Mobile.Firebase
             _hasPendingUserId = false;
             _pendingUserId = null;
         }
-    }
-
-    static class FirebaseAnalyticsRegistration
-    {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void Register() =>
-            AdapterRegistry.RegisterTrackingSink(TrackingSinkIds.Firebase, ctx => new FirebaseAnalyticsSink(ctx));
     }
 }
