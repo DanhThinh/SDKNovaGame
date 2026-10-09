@@ -32,6 +32,12 @@ namespace NovaGames.Mobile
         /// <summary>Nguồn của bộ giá trị đang dùng: Default (chưa có gì), Cache (lần trước), Remote (vừa fetch).</summary>
         public static ConfigSource Source => s_service?.Current.Value.Source ?? ConfigSource.Default;
 
+        /// <summary>
+        /// Lý do lỗi của lần init/fetch gần nhất (kèm message gốc của Firebase), null = lần gần nhất thành công hoặc
+        /// chưa fetch. Dùng để hiện lên màn hình debug khi build không có log.
+        /// </summary>
+        public static string? LastError { get; private set; }
+
         public static bool GetBool<TKey>(TKey key) where TKey : struct, Enum => Read(key, (d, k) => d.Bool(k), false);
         public static int GetInt<TKey>(TKey key) where TKey : struct, Enum => Read(key, (d, k) => d.Int(k), 0);
         public static long GetLong<TKey>(TKey key) where TKey : struct, Enum => Read(key, (d, k) => d.Long(k), 0L);
@@ -45,9 +51,26 @@ namespace NovaGames.Mobile
         public static async Task<bool> FetchAsync()
         {
             var service = s_service;
-            if (service is null) return false;
+            if (service is null)
+            {
+                LastError = "Remote Config not initialized (NovaSdk.InitializeAsync not called or failed)";
+                return false;
+            }
             var result = await service.FetchAndActivateAsync(s_fetchTimeout, CancellationToken.None);
+            ReportResult(result.Error);
             return result.IsSuccess;
+        }
+
+        internal static void ReportResult(SdkError? error) => LastError = error is null ? null : Describe(error);
+
+        // SdkError.Message của fetch/timeout không chứa message vendor: nối thêm exception gốc trong cùng (403, network...).
+        static string Describe(SdkError error)
+        {
+            var text = error.ToString();
+            var e = error.Exception;
+            while (e?.InnerException != null) e = e.InnerException;
+            if (e != null && !text.Contains(e.Message)) text += " | " + e.GetType().Name + ": " + e.Message;
+            return text;
         }
 
         internal static void Attach(RemoteConfigService service, RemoteConfigDefinitions? definitions, TimeSpan fetchTimeout, ISdkLogger log)
@@ -105,6 +128,7 @@ namespace NovaGames.Mobile
             s_service = null;
             s_definitions = null;
             s_log = null;
+            LastError = null;
             Updated = null;
             Reported.Clear();
         }

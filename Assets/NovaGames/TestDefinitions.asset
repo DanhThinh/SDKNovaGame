@@ -12,4 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 0}
   m_Name: TestDefinitions
   m_EditorClassIdentifier: NovaGames.Mobile.Core.Tests.Editor:NovaGames.Mobile.Tests:TestDefinitions
-  entries: []
+  entries:
+  - key: 0
+    type: 0
+    defaultValue: 
+    remoteOverridable: 0

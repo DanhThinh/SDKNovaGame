@@ -53,6 +53,7 @@ namespace NovaGames.Mobile.Samples
             await NovaSdk.WhenReady;
             if (this == null) return;
             Log("SDK ready");
+            if (NovaRemoteConfig.LastError != null) Log("<color=red>Remote Config error: " + NovaRemoteConfig.LastError + "</color>");
         }
 
         void OnDestroy()
@@ -86,7 +87,8 @@ namespace NovaGames.Mobile.Samples
             Log("Fetching Remote Config...");
             bool ok = await NovaRemoteConfig.FetchAsync();
             if (this == null) return;
-            Log(ok ? "Remote Config fetched (" + NovaRemoteConfig.Source + ")" : "Remote Config fetch failed, using " + NovaRemoteConfig.Source);
+            Log(ok ? "Remote Config fetched (" + NovaRemoteConfig.Source + ")"
+                : "<color=red>Remote Config fetch failed, using " + NovaRemoteConfig.Source + ": " + NovaRemoteConfig.LastError + "</color>");
         }
 
         // ---------------- Analytics ----------------
@@ -355,7 +357,8 @@ namespace NovaGames.Mobile.Samples
                 ", privacy button: " + NovaPrivacy.IsPrivacyOptionsRequired + "\n" +
                 "<b>Remote Config</b> " + NovaRemoteConfig.Source + ": ads " + NovaRemoteConfig.GetBool(RemoteKey.ad_enabled) +
                 ", inter every " + NovaRemoteConfig.GetInt(RemoteKey.ad_inter_interval) + "s from level " +
-                NovaRemoteConfig.GetInt(RemoteKey.ad_inter_start_level) + "\n" +
+                NovaRemoteConfig.GetInt(RemoteKey.ad_inter_start_level) +
+                (NovaRemoteConfig.LastError != null ? "\n<color=red>  error: " + NovaRemoteConfig.LastError + "</color>" : string.Empty) + "\n" +
                 "<b>Attribution</b> " + (attribution != null ? attribution.Network + " / " + attribution.Campaign : "none") +
                 "  |  deep link: " + _lastDeepLink + "\n" +
                 "<b>Ads</b> " + (NovaAds.IsInitialized ? "ready" : "not ready") + (NovaAds.IsRemoveAds ? " (remove_ads)" : string.Empty) +

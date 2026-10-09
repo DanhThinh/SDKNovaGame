@@ -186,6 +186,7 @@ namespace NovaGames.Mobile
 
                 // 3. Chờ Remote Config (có timeout) trước khi tạo Ads: Ads đọc kill switch/capping và cờ của adapter.
                 var config = await runtime.RemoteConfig.InitializeAsync(CancellationToken.None);
+                NovaRemoteConfig.ReportResult(config.Error);
                 if (!config.IsSuccess) log.Warning("Remote Config running on " + runtime.RemoteConfig.Current.Value.Source + ": " + config.Error);
 
                 // 4. Ads: khởi tạo ở nền (chờ consent, init SDK mediation); NovaAds dùng được ngay.
